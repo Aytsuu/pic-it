@@ -133,30 +133,42 @@ Set up the repo so every subsequent phase has a clean, runnable base.
 
 ## Phase 1 — Identity
 
-Users need an account before they can create or join a moment. Keep auth minimal: email magic link (no password).
+Users need an account before they can create or join a moment. Sign-in is **Continue with Google**: one button that opens Google’s account picker. No email field, no magic link, no OTP, no password.
+
+Use **Supabase Google provider + Expo Auth Session** (`signInWithOAuth` + `WebBrowser.openAuthSessionAsync`). That works in Expo Go. Do **not** use `@react-native-google-signin/google-signin` in this phase — it needs a custom dev client.
 
 ### Tasks
 
-- [ ] Create Supabase project; enable **Email** provider, turn on **magic link / OTP**, disable password sign-in
-- [ ] Create `src/screens/sign-in/index.tsx` — text input (email), "Send link" button, calls `supabase.auth.signInWithOtp({ email })`; shows a "Check your email" confirmation state after send
-- [ ] Create `src/hooks/use-auth.ts` — wraps `supabase.auth.getSession()` and `supabase.auth.onAuthStateChange()`; exposes `{ session, user, signOut }`
-- [ ] Create `src/app/(auth)/_layout.tsx` — Stack navigator (no tabs yet)
-- [ ] Create `src/app/(auth)/sign-in.tsx` — thin re-export: `export { SignInScreen as default } from '@/screens/sign-in'`
-- [ ] Create `src/app/(app)/_layout.tsx` — placeholder Stack, check session; if no session redirect to `/(auth)/sign-in`
-- [ ] Create `src/app/(app)/index.tsx` — placeholder `<Text>Home</Text>` for now
-- [ ] Update root `src/app/_layout.tsx` to read session and render `(auth)` or `(app)` group accordingly:
+- [x] Create or reuse the Supabase project; enable the **Google** provider (Authentication → Providers). Disable Email / password and magic link for this app
+- [ ] In Google Cloud Console, create an OAuth **Web** client; paste Client ID and Client Secret into Supabase Auth → Google *(blocked — requires user-owned Google Cloud credentials)*
+- [x] Add redirect `picit://google-auth` to the Supabase Auth redirect allow-list (app scheme is already `picit` in `app.json`)
+- [x] Install auth session packages:
+  ```sh
+  npx expo install expo-auth-session expo-web-browser
+  ```
+- [x] Create `src/screens/sign-in/index.tsx` — one **Continue with Google** button (no email field). On press:
+  1. `supabase.auth.signInWithOAuth({ provider: 'google', options: { skipBrowserRedirect: true, redirectTo: 'picit://google-auth' } })`
+  2. `WebBrowser.openAuthSessionAsync(url, redirectTo)` so Google’s UI opens in-app
+  3. Parse the return URL and call `supabase.auth.setSession(...)` or `exchangeCodeForSession`
+- [x] Handle the deep link so returning from Google lands in the app with a session (`expo-linking` / Auth Session result)
+- [x] Create `src/hooks/use-auth.ts` — wraps `supabase.auth.getSession()` and `supabase.auth.onAuthStateChange()`; exposes `{ session, user, signOut }`
+- [x] Create `src/app/(auth)/_layout.tsx` — Stack navigator (no tabs yet)
+- [x] Create `src/app/(auth)/sign-in.tsx` — thin re-export: `export { SignInScreen as default } from '@/screens/sign-in'`
+- [x] Create `src/app/(app)/_layout.tsx` — placeholder Stack, check session; if no session redirect to `/(auth)/sign-in`
+- [x] Create `src/app/(app)/index.tsx` — placeholder `<Text>Home</Text>` for now
+- [x] Update root `src/app/_layout.tsx` to read session and render `(auth)` or `(app)` group accordingly:
   ```ts
   // on auth state change, router.replace to correct group
   ```
-- [ ] Store session token via `expo-secure-store` so it survives an app restart (Supabase JS client accepts a custom storage adapter)
+- [x] Store session token via `expo-secure-store` so it survives an app restart (Supabase JS client accepts a custom storage adapter)
 
 ### Verify
 
-- [ ] Open app cold → lands on sign-in screen
-- [ ] Enter a valid email → "Check your email" message appears
-- [ ] Open the magic link email → app opens (or deeplink fires) → session established → lands on `(app)` home placeholder
-- [ ] Force-close and reopen the app → lands directly on `(app)` home (no sign-in prompt)
-- [ ] `use-auth` `signOut()` clears the session → redirected back to sign-in
+- [ ] Open app cold → lands on sign-in screen *(pending device test)*
+- [ ] Tap **Continue with Google** → Google account picker / Google sign-in UI opens *(pending Google OAuth credentials)*
+- [ ] Pick an account → return to the app → session established → lands on `(app)` home placeholder *(pending Google OAuth credentials)*
+- [ ] Force-close and reopen the app → lands directly on `(app)` home (no sign-in prompt) *(pending Google OAuth credentials)*
+- [ ] `use-auth` `signOut()` clears the session → redirected back to sign-in *(pending device test; Sign out button added on home)*
 
 ---
 
