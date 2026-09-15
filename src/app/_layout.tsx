@@ -13,27 +13,21 @@ const SIGN_IN_ROUTE = '/(auth)/sign-in' as Href;
 const APP_ROUTE = '/(app)' as Href;
 
 function SessionGate() {
-  const { session } = useAuth();
+  const { session, isLoading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
-  const group = segments[0] as string | undefined;
 
   useEffect(() => {
-    const inAuth = group === '(auth)';
-    const inApp = group === '(app)';
+    if (isLoading) return;
 
-    if (!session && !inAuth) {
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (session && inAuthGroup) {
+      router.replace(APP_ROUTE);
+    } else if (!session && !inAuthGroup) {
       router.replace(SIGN_IN_ROUTE);
     }
-
-    if (session && inAuth) {
-      router.replace(APP_ROUTE);
-    }
-
-    if (session && !inAuth && !inApp) {
-      router.replace(APP_ROUTE);
-    }
-  }, [session, group, router]);
+  }, [session, isLoading, segments]);
 
   return <Slot />;
 }

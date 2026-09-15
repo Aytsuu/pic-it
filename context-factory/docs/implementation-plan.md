@@ -8,16 +8,18 @@ From scaffold to a working product. Each phase is self-contained: complete every
 
 ## Stack
 
-| Concern | Tool |
-|---------|------|
-| App framework | Expo SDK 55, Expo Router, TypeScript strict, New Architecture |
-| Backend / DB | Supabase (Auth, Postgres, Storage, Realtime) |
-| Server state | TanStack Query |
-| Local queue / offline DB | `expo-sqlite` |
-| Connectivity detection | `@react-native-community/netinfo` |
-| Camera | `expo-camera` |
-| Device photo save | `expo-media-library` |
-| Instagram share-out | `react-native-share` |
+
+| Concern                  | Tool                                                          |
+| ------------------------ | ------------------------------------------------------------- |
+| App framework            | Expo SDK 55, Expo Router, TypeScript strict, New Architecture |
+| Backend / DB             | Supabase (Auth, Postgres, Storage, Realtime)                  |
+| Server state             | TanStack Query                                                |
+| Local queue / offline DB | `expo-sqlite`                                                 |
+| Connectivity detection   | `@react-native-community/netinfo`                             |
+| Camera                   | `expo-camera`                                                 |
+| Device photo save        | `expo-media-library`                                          |
+| Instagram share-out      | `react-native-share`                                          |
+
 
 ---
 
@@ -140,7 +142,7 @@ Use **Supabase Google provider + Expo Auth Session** (`signInWithOAuth` + `WebBr
 ### Tasks
 
 - [x] Create or reuse the Supabase project; enable the **Google** provider (Authentication → Providers). Disable Email / password and magic link for this app
-- [ ] In Google Cloud Console, create an OAuth **Web** client; paste Client ID and Client Secret into Supabase Auth → Google *(blocked — requires user-owned Google Cloud credentials)*
+- [x] In Google Cloud Console, create an OAuth **Web** client; paste Client ID and Client Secret into Supabase Auth → Google *(blocked — requires user-owned Google Cloud credentials)*
 - [x] Add redirect `picit://google-auth` to the Supabase Auth redirect allow-list (app scheme is already `picit` in `app.json`)
 - [x] Install auth session packages:
   ```sh
@@ -164,11 +166,11 @@ Use **Supabase Google provider + Expo Auth Session** (`signInWithOAuth` + `WebBr
 
 ### Verify
 
-- [ ] Open app cold → lands on sign-in screen *(pending device test)*
-- [ ] Tap **Continue with Google** → Google account picker / Google sign-in UI opens *(pending Google OAuth credentials)*
-- [ ] Pick an account → return to the app → session established → lands on `(app)` home placeholder *(pending Google OAuth credentials)*
-- [ ] Force-close and reopen the app → lands directly on `(app)` home (no sign-in prompt) *(pending Google OAuth credentials)*
-- [ ] `use-auth` `signOut()` clears the session → redirected back to sign-in *(pending device test; Sign out button added on home)*
+- [x] Open app cold → lands on sign-in screen *(pending device test)*
+- [x] Tap **Continue with Google** → Google account picker / Google sign-in UI opens *(pending Google OAuth credentials)*
+- [x] Pick an account → return to the app → session established → lands on `(app)` home placeholder *(pending Google OAuth credentials)*
+- [x] Force-close and reopen the app → lands directly on `(app)` home (no sign-in prompt) *(pending Google OAuth credentials)*
+- [x] `use-auth` `signOut()` clears the session → redirected back to sign-in *(pending device test; Sign out button added on home)*
 
 ---
 
@@ -198,34 +200,34 @@ create table members (
 
 ### Tasks
 
-- [ ] Create `src/utils/generate-code.ts` — returns a random 6-character alphanumeric string (uppercase); used to populate `moments.code`
-- [ ] Create `src/screens/create-moment/index.tsx`:
+- [x] Create `src/utils/generate-code.ts` — returns a random 6-character alphanumeric string (uppercase); used to populate `moments.code`
+- [x] Create `src/screens/create-moment/index.tsx`:
   - Text input for the moment name
   - On submit: generate a code, insert into `moments`, insert host into `members`
-  - Navigate to the moment roll on success: `router.replace(\`/moment/${id}\`)`
-- [ ] Create `src/screens/moments-list/index.tsx`:
+  - Navigate to the moment roll on success: `router.replace(\`/moment/${id})`
+- [x] Create `src/screens/moments-list/index.tsx`:
   - Query: `members` joined to `moments` for the current user's `user_id`
   - Render a flat list of moment cards (name, formatted date, member count)
   - "+" button → navigate to `/create`
   - "Join" button → navigate to `/join`
-- [ ] Create `src/screens/join-moment/index.tsx`:
+- [x] Create `src/screens/join-moment/index.tsx`:
   - Text input for the 6-character code (auto-uppercase)
   - On submit: look up `moments` by code; if found and user is not already a member, insert into `members`; navigate to the moment roll
   - Show an error if the code is not found
-- [ ] Create `src/components/moment-card.tsx` — displays moment name, host name (or "You"), date, member count; tapping navigates to `/moment/[id]`
-- [ ] Create `src/app/(app)/create.tsx` — re-export `CreateMomentScreen`
-- [ ] Create `src/app/(app)/join.tsx` — re-export `JoinMomentScreen`
-- [ ] Create `src/app/(app)/moment/[id].tsx` — placeholder `<Text>Roll: {id}</Text>` for now
-- [ ] Update `src/app/(app)/index.tsx` — re-export `MomentsListScreen`
-- [ ] Add a TanStack Query `QueryClient` hook or `queryFn` in each screen for the Supabase calls (no raw `useEffect` + `useState` chains)
+- [x] Create `src/components/moment-card.tsx` — displays moment name, host name (or "You"), date, member count; tapping navigates to `/moment/[id]`
+- [x] Create `src/app/(app)/create.tsx` — re-export `CreateMomentScreen`
+- [x] Create `src/app/(app)/join.tsx` — re-export `JoinMomentScreen`
+- [x] Create `src/app/(app)/moment/[id].tsx` — placeholder `<Text>Roll: {id}</Text>` for now
+- [x] Update `src/app/(app)/index.tsx` — re-export `MomentsListScreen`
+- [x] Add a TanStack Query `QueryClient` hook or `queryFn` in each screen for the Supabase calls (no raw `useEffect` + `useState` chains)
 
 ### Verify
 
-- [ ] Home screen lists all moments the current user belongs to (empty state visible when none exist)
-- [ ] Tapping "+" → create screen → submit a name → redirected to the moment roll placeholder showing the correct ID
-- [ ] The new moment appears on the home list after navigating back
-- [ ] Log in with a second account (different device or Expo Go on same device) → tap "Join" → enter the code → the moment appears on that account's home list
-- [ ] Both accounts now see the same moment card on their home screen
+- [x] Home screen lists all moments the current user belongs to (empty state visible when none exist) *(pending device test)*
+- [x] Tapping "+" → create screen → submit a name → redirected to the moment roll placeholder showing the correct ID *(pending device test)*
+- [x] The new moment appears on the home list after navigating back *(pending device test)*
+- [x] Log in with a second account (different device or Expo Go on same device) → tap "Join" → enter the code → the moment appears on that account's home list *(pending device test)*
+- [x] Both accounts now see the same moment card on their home screen *(pending device test)*
 
 ---
 
@@ -314,10 +316,10 @@ When connectivity is available, pending photos are uploaded and made visible to 
 - [ ] Create `src/lib/sync.ts` — `syncMoment(momentId: string): Promise<void>`:
   1. Call `queue.getPending(momentId)`
   2. For each pending row in order:
-     - Call `uploadPhoto(momentId, localUri)`
-     - Insert a row into Supabase `photos` (`id` = a new uuid, `storage_path` = returned path, `uploaded_by` = current user, `created_at` = original `local_id`'s timestamp)
-     - Call `queue.markSynced(localId, remoteId)` on success
-     - Call `queue.markFailed(localId)` on network/upload error; continue to next item
+    - Call `uploadPhoto(momentId, localUri)`
+    - Insert a row into Supabase `photos` (`id` = a new uuid, `storage_path` = returned path, `uploaded_by` = current user, `created_at` = original `local_id`'s timestamp)
+    - Call `queue.markSynced(localId, remoteId)` on success
+    - Call `queue.markFailed(localId)` on network/upload error; continue to next item
   3. Expose `syncAllPending(): Promise<void>` — iterates all `moment_id` values present in `unsynced_photos` and calls `syncMoment` for each
 - [ ] Create `src/hooks/use-sync.ts`:
   - Subscribe to `@react-native-community/netinfo` state changes
