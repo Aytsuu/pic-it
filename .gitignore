@@ -142,6 +142,13 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.expo/web-export-test/
+
 # Agentic Configuration
 .agents
 .codex

@@ -79,9 +79,9 @@ Set up the repo so every subsequent phase has a clean, runnable base.
 
 ### Tasks
 
-- [ ] Run `npx create-expo-app@latest pic-it --template default` (SDK 55 default template)
-- [ ] Move generated `app/` into `src/app/` if not already placed there; confirm `src/` tree exists
-- [ ] Update `tsconfig.json`:
+- [x] Run `npx create-expo-app@latest pic-it --template default` (SDK 55 default template)
+- [x] Move generated `app/` into `src/app/` if not already placed there; confirm `src/` tree exists
+- [x] Update `tsconfig.json`:
   ```json
   {
     "extends": "expo/tsconfig.base",
@@ -92,7 +92,7 @@ Set up the repo so every subsequent phase has a clean, runnable base.
     }
   }
   ```
-- [ ] Create folder skeleton (empty `index.ts` or `.gitkeep` in each):
+- [x] Create folder skeleton (empty `index.ts` or `.gitkeep` in each):
   ```text
   src/screens/
   src/components/
@@ -100,7 +100,7 @@ Set up the repo so every subsequent phase has a clean, runnable base.
   src/lib/
   src/utils/
   ```
-- [ ] Install dependencies:
+- [x] Install dependencies:
   ```sh
   npx expo install @supabase/supabase-js @tanstack/react-query
   npx expo install expo-camera expo-media-library expo-sqlite
@@ -108,7 +108,7 @@ Set up the repo so every subsequent phase has a clean, runnable base.
   npx expo install @react-native-community/netinfo
   npm install react-native-share
   ```
-- [ ] Create `src/lib/supabase.ts`:
+- [x] Create `src/lib/supabase.ts`:
   ```ts
   import { createClient } from '@supabase/supabase-js';
 
@@ -117,17 +117,17 @@ Set up the repo so every subsequent phase has a clean, runnable base.
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
   );
   ```
-- [ ] Create `.env.local` with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (fill from Supabase dashboard); add `.env.local` to `.gitignore`
-- [ ] Create `.env.example` with the two keys blank (commit this)
-- [ ] Write root `src/app/_layout.tsx` — wraps app in `QueryClientProvider`; renders `<Slot />`
-- [ ] Write `src/app/+not-found.tsx` — simple "Page not found" text
-- [ ] Run `npx expo start` and confirm no errors in the Metro log
+- [x] Create `.env.local` with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (fill from Supabase dashboard); add `.env.local` to `.gitignore`
+- [x] Create `.env.example` with the two keys blank (commit this)
+- [x] Write root `src/app/_layout.tsx` — wraps app in `QueryClientProvider`; renders `<Slot />`
+- [x] Write `src/app/+not-found.tsx` — simple "Page not found" text
+- [x] Run `npx expo start` and confirm no errors in the Metro log
 
 ### Verify
 
-- [ ] App opens to a blank white screen (no crash, no red box)
-- [ ] In the Expo CLI, press `J` → Chrome DevTools → Console: `supabase` imported with no `undefined` URL warnings
-- [ ] `tsconfig.json` strict mode: running `npx tsc --noEmit` exits with no errors
+- [x] App opens to a blank white screen (no crash, no red box)
+- [x] In the Expo CLI, press `J` → Chrome DevTools → Console: `supabase` imported with no `undefined` URL warnings
+- [x] `tsconfig.json` strict mode: running `npx tsc --noEmit` exits with no errors
 
 ---
 
