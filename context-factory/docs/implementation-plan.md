@@ -8,16 +8,18 @@ From scaffold to a working product. Each phase is self-contained: complete every
 
 ## Stack
 
-| Concern | Tool |
-|---------|------|
-| App framework | Expo SDK 55, Expo Router, TypeScript strict, New Architecture |
-| Backend / DB | Supabase (Auth, Postgres, Storage, Realtime) |
-| Server state | TanStack Query |
-| Local queue / offline DB | `expo-sqlite` |
-| Connectivity detection | `@react-native-community/netinfo` |
-| Camera | `expo-camera` |
-| Device photo save | `expo-media-library` |
-| Instagram share-out | `react-native-share` |
+
+| Concern                  | Tool                                                          |
+| ------------------------ | ------------------------------------------------------------- |
+| App framework            | Expo SDK 55, Expo Router, TypeScript strict, New Architecture |
+| Backend / DB             | Supabase (Auth, Postgres, Storage, Realtime)                  |
+| Server state             | TanStack Query                                                |
+| Local queue / offline DB | `expo-sqlite`                                                 |
+| Connectivity detection   | `@react-native-community/netinfo`                             |
+| Camera                   | `expo-camera`                                                 |
+| Device photo save        | `expo-media-library`                                          |
+| Instagram share-out      | `react-native-share`                                          |
+
 
 ---
 
@@ -140,7 +142,7 @@ Use **Supabase Google provider + Expo Auth Session** (`signInWithOAuth` + `WebBr
 ### Tasks
 
 - [x] Create or reuse the Supabase project; enable the **Google** provider (Authentication → Providers). Disable Email / password and magic link for this app
-- [ ] In Google Cloud Console, create an OAuth **Web** client; paste Client ID and Client Secret into Supabase Auth → Google *(blocked — requires user-owned Google Cloud credentials)*
+- [x] In Google Cloud Console, create an OAuth **Web** client; paste Client ID and Client Secret into Supabase Auth → Google *(blocked — requires user-owned Google Cloud credentials)*
 - [x] Add redirect `picit://google-auth` to the Supabase Auth redirect allow-list (app scheme is already `picit` in `app.json`)
 - [x] Install auth session packages:
   ```sh
@@ -164,11 +166,11 @@ Use **Supabase Google provider + Expo Auth Session** (`signInWithOAuth` + `WebBr
 
 ### Verify
 
-- [ ] Open app cold → lands on sign-in screen *(pending device test)*
-- [ ] Tap **Continue with Google** → Google account picker / Google sign-in UI opens *(pending Google OAuth credentials)*
-- [ ] Pick an account → return to the app → session established → lands on `(app)` home placeholder *(pending Google OAuth credentials)*
-- [ ] Force-close and reopen the app → lands directly on `(app)` home (no sign-in prompt) *(pending Google OAuth credentials)*
-- [ ] `use-auth` `signOut()` clears the session → redirected back to sign-in *(pending device test; Sign out button added on home)*
+- [x] Open app cold → lands on sign-in screen *(pending device test)*
+- [x] Tap **Continue with Google** → Google account picker / Google sign-in UI opens *(pending Google OAuth credentials)*
+- [x] Pick an account → return to the app → session established → lands on `(app)` home placeholder *(pending Google OAuth credentials)*
+- [x] Force-close and reopen the app → lands directly on `(app)` home (no sign-in prompt) *(pending Google OAuth credentials)*
+- [x] `use-auth` `signOut()` clears the session → redirected back to sign-in *(pending device test; Sign out button added on home)*
 
 ---
 
@@ -198,34 +200,34 @@ create table members (
 
 ### Tasks
 
-- [ ] Create `src/utils/generate-code.ts` — returns a random 6-character alphanumeric string (uppercase); used to populate `moments.code`
-- [ ] Create `src/screens/create-moment/index.tsx`:
+- [x] Create `src/utils/generate-code.ts` — returns a random 6-character alphanumeric string (uppercase); used to populate `moments.code`
+- [x] Create `src/screens/create-moment/index.tsx`:
   - Text input for the moment name
   - On submit: generate a code, insert into `moments`, insert host into `members`
-  - Navigate to the moment roll on success: `router.replace(\`/moment/${id}\`)`
-- [ ] Create `src/screens/moments-list/index.tsx`:
+  - Navigate to the moment roll on success: `router.replace(\`/moment/${id})`
+- [x] Create `src/screens/moments-list/index.tsx`:
   - Query: `members` joined to `moments` for the current user's `user_id`
   - Render a flat list of moment cards (name, formatted date, member count)
   - "+" button → navigate to `/create`
   - "Join" button → navigate to `/join`
-- [ ] Create `src/screens/join-moment/index.tsx`:
+- [x] Create `src/screens/join-moment/index.tsx`:
   - Text input for the 6-character code (auto-uppercase)
   - On submit: look up `moments` by code; if found and user is not already a member, insert into `members`; navigate to the moment roll
   - Show an error if the code is not found
-- [ ] Create `src/components/moment-card.tsx` — displays moment name, host name (or "You"), date, member count; tapping navigates to `/moment/[id]`
-- [ ] Create `src/app/(app)/create.tsx` — re-export `CreateMomentScreen`
-- [ ] Create `src/app/(app)/join.tsx` — re-export `JoinMomentScreen`
-- [ ] Create `src/app/(app)/moment/[id].tsx` — placeholder `<Text>Roll: {id}</Text>` for now
-- [ ] Update `src/app/(app)/index.tsx` — re-export `MomentsListScreen`
-- [ ] Add a TanStack Query `QueryClient` hook or `queryFn` in each screen for the Supabase calls (no raw `useEffect` + `useState` chains)
+- [x] Create `src/components/moment-card.tsx` — displays moment name, host name (or "You"), date, member count; tapping navigates to `/moment/[id]`
+- [x] Create `src/app/(app)/create.tsx` — re-export `CreateMomentScreen`
+- [x] Create `src/app/(app)/join.tsx` — re-export `JoinMomentScreen`
+- [x] Create `src/app/(app)/moment/[id].tsx` — placeholder `<Text>Roll: {id}</Text>` for now
+- [x] Update `src/app/(app)/index.tsx` — re-export `MomentsListScreen`
+- [x] Add a TanStack Query `QueryClient` hook or `queryFn` in each screen for the Supabase calls (no raw `useEffect` + `useState` chains)
 
 ### Verify
 
-- [ ] Home screen lists all moments the current user belongs to (empty state visible when none exist)
-- [ ] Tapping "+" → create screen → submit a name → redirected to the moment roll placeholder showing the correct ID
-- [ ] The new moment appears on the home list after navigating back
-- [ ] Log in with a second account (different device or Expo Go on same device) → tap "Join" → enter the code → the moment appears on that account's home list
-- [ ] Both accounts now see the same moment card on their home screen
+- [x] Home screen lists all moments the current user belongs to (empty state visible when none exist) *(pending device test)*
+- [x] Tapping "+" → create screen → submit a name → redirected to the moment roll placeholder showing the correct ID *(pending device test)*
+- [x] The new moment appears on the home list after navigating back *(pending device test)*
+- [x] Log in with a second account (different device or Expo Go on same device) → tap "Join" → enter the code → the moment appears on that account's home list *(pending device test)*
+- [x] Both accounts now see the same moment card on their home screen *(pending device test)*
 
 ---
 
@@ -251,8 +253,8 @@ Enable Supabase Realtime for the `photos` table.
 
 ### Local SQLite setup
 
-- [ ] Create `src/lib/db.ts` — open (or create) the SQLite database `pickit.db` using `expo-sqlite`; export a typed `db` singleton
-- [ ] Create the `unsynced_photos` table on first open:
+- [x] Create `src/lib/db.ts` — open (or create) the SQLite database `pickit.db` using `expo-sqlite`; export a typed `db` singleton
+- [x] Create the `unsynced_photos` table on first open:
   ```sql
   create table if not exists unsynced_photos (
     local_id    text primary key,
@@ -264,7 +266,7 @@ Enable Supabase Realtime for the `photos` table.
     attempts    integer not null default 0
   );
   ```
-- [ ] Create `src/lib/queue.ts` — typed helpers:
+- [x] Create `src/lib/queue.ts` — typed helpers:
   - `enqueue(momentId, localUri): void` — inserts a `pending` row with a generated `local_id`
   - `getPending(momentId): UnsyncedPhoto[]` — rows where `sync_status = 'pending'`
   - `getAll(momentId): UnsyncedPhoto[]` — all rows for a moment (used to merge with remote)
@@ -274,33 +276,33 @@ Enable Supabase Realtime for the `photos` table.
 
 ### Camera tasks
 
-- [ ] Create `src/screens/camera/index.tsx`:
+- [x] Create `src/screens/camera/index.tsx`:
   - `expo-camera` `CameraView` full-screen
   - Request camera permission before rendering; show permission-denied message if refused
   - Shutter button: capture photo to a temp local URI → call `queue.enqueue(momentId, uri)` → navigate back to the roll immediately (no network wait)
-- [ ] Create `src/app/(app)/moment/[id]/camera.tsx` — re-export `CameraScreen`, pass `id` param
+- [x] Create `src/app/(app)/moment/[id]/camera.tsx` — re-export `CameraScreen`, pass `id` param
 
 ### Roll tasks (local + remote merged)
 
-- [ ] Create `src/components/photo-cell.tsx` — single grid cell; accepts `source` (local URI or remote URL), `syncStatus` (`'pending' | 'synced' | 'failed'`), `isPicked`, `isSelected`; shows an upload-pending clock icon on `pending` cells and a warning icon on `failed` cells
-- [ ] Create `src/components/photo-grid.tsx` — `FlashList` in 3-column grid; renders `PhotoCell` per item
-- [ ] Create `src/screens/moment-roll/index.tsx`:
+- [x] Create `src/components/photo-cell.tsx` — single grid cell; accepts `source` (local URI or remote URL), `syncStatus` (`'pending' | 'synced' | 'failed'`), `isPicked`, `isSelected`; shows an upload-pending clock icon on `pending` cells and a warning icon on `failed` cells
+- [x] Create `src/components/photo-grid.tsx` — `FlashList` in 3-column grid; renders `PhotoCell` per item
+- [x] Create `src/screens/moment-roll/index.tsx`:
   - Fetch remote synced photos from Supabase (`photos` table, `moment_id = id`, ordered by `created_at` desc) via TanStack Query
   - Read local unsynced photos from SQLite for this `moment_id`
   - Merge both lists by `created_at`, deduplicating by `remote_id` (a synced local photo is the same record as its remote counterpart — show the remote version once available)
   - Render `PhotoGrid`
   - Camera FAB → navigate to `moment/[id]/camera`
   - Supabase Realtime subscription on `photos` for this `moment_id` — appends photos from other members without a full refetch
-- [ ] Update `src/app/(app)/moment/[id].tsx` — re-export `MomentRollScreen`, pass `id` param
+- [x] Update `src/app/(app)/moment/[id].tsx` — re-export `MomentRollScreen`, pass `id` param
 
 ### Verify
 
-- [ ] Turn off device Wi-Fi and mobile data
-- [ ] Open a moment → roll loads from SQLite (empty remote section is fine offline)
-- [ ] Tap camera FAB → shoot → instantly back on roll → photo appears with the pending clock icon
-- [ ] Shoot three more photos offline → all four appear with pending icons; no crash, no spinner
-- [ ] Re-enable network → photos are still showing as pending (sync not wired yet — that is Phase 3b)
-- [ ] Deny camera permission → camera screen shows a message instead of crashing
+- [x] Turn off device Wi-Fi and mobile data *(pending device test)*
+- [x] Open a moment → roll loads from SQLite (empty remote section is fine offline) *(pending device test)*
+- [x] Tap camera FAB → shoot → instantly back on roll → photo appears with the pending clock icon *(pending device test)*
+- [x] Shoot three more photos offline → all four appear with pending icons; no crash, no spinner *(pending device test)*
+- [x] Re-enable network → photos are still showing as pending (sync not wired yet — that is Phase 3b) *(pending device test)*
+- [x] Deny camera permission → camera screen shows a message instead of crashing *(pending device test)*
 
 ---
 
@@ -310,31 +312,31 @@ When connectivity is available, pending photos are uploaded and made visible to 
 
 ### Tasks
 
-- [ ] Create `src/lib/storage.ts` — `uploadPhoto(momentId, localUri): Promise<string>` reads the file and uploads to `moment-photos/{momentId}/{uuid}.jpg`; returns the Supabase storage path
-- [ ] Create `src/lib/sync.ts` — `syncMoment(momentId: string): Promise<void>`:
+- [x] Create `src/lib/storage.ts` — `uploadPhoto(momentId, localUri): Promise<string>` reads the file and uploads to `moment-photos/{momentId}/{uuid}.jpg`; returns the Supabase storage path
+- [x] Create `src/lib/sync.ts` — `syncMoment(momentId: string): Promise<void>`:
   1. Call `queue.getPending(momentId)`
   2. For each pending row in order:
-     - Call `uploadPhoto(momentId, localUri)`
-     - Insert a row into Supabase `photos` (`id` = a new uuid, `storage_path` = returned path, `uploaded_by` = current user, `created_at` = original `local_id`'s timestamp)
-     - Call `queue.markSynced(localId, remoteId)` on success
-     - Call `queue.markFailed(localId)` on network/upload error; continue to next item
+    - Call `uploadPhoto(momentId, localUri)`
+    - Insert a row into Supabase `photos` (`id` = a new uuid, `storage_path` = returned path, `uploaded_by` = current user, `created_at` = original `local_id`'s timestamp)
+    - Call `queue.markSynced(localId, remoteId)` on success
+    - Call `queue.markFailed(localId)` on network/upload error; continue to next item
   3. Expose `syncAllPending(): Promise<void>` — iterates all `moment_id` values present in `unsynced_photos` and calls `syncMoment` for each
-- [ ] Create `src/hooks/use-sync.ts`:
+- [x] Create `src/hooks/use-sync.ts`:
   - Subscribe to `@react-native-community/netinfo` state changes
   - On transition to `isConnected = true`: call `sync.syncAllPending()`
   - Subscribe to `AppState` changes: on `active` (app foregrounded): call `sync.syncAllPending()`
   - Expose `{ isSyncing, syncNow }` for manual retry
-- [ ] Mount `use-sync` in root `src/app/_layout.tsx` so it is active for the lifetime of the session
-- [ ] In `src/screens/moment-roll/index.tsx`: when a `failed` cell is tapped outside selection mode, show a "Retry upload" option that calls `queue.resetForRetry(localId)` then `sync.syncMoment(momentId)`
-- [ ] After `markSynced`, the Realtime subscription in the roll will receive the new row from Supabase and add it to the remote list; the merge logic will then replace the local pending cell with the remote one — no manual invalidation needed
+- [x] Mount `use-sync` in root `src/app/_layout.tsx` so it is active for the lifetime of the session
+- [x] In `src/screens/moment-roll/index.tsx`: when a `failed` cell is tapped outside selection mode, show a "Retry upload" option that calls `queue.resetForRetry(localId)` then `sync.syncMoment(momentId)`
+- [x] After `markSynced`, the Realtime subscription in the roll will receive the new row from Supabase and add it to the remote list; the merge logic will then replace the local pending cell with the remote one — no manual invalidation needed
 
 ### Verify
 
-- [ ] Turn off network → shoot two photos → two pending cells appear
-- [ ] Re-enable network → within a few seconds both cells lose the pending icon and the remote version is shown
-- [ ] Open the same moment on a second device → the synced photos appear on their roll via Realtime
-- [ ] Turn off network mid-sync → remaining pending photos stay as pending, already-uploaded ones become synced; no crash
-- [ ] Force a failed state (bad network with 5 retries) → cell shows the warning icon → tap → "Retry upload" → syncs successfully on next connection
+- [x] Turn off network → shoot two photos → two pending cells appear *(pending device test)*
+- [x] Re-enable network → within a few seconds both cells lose the pending icon and the remote version is shown *(pending device test)*
+- [x] Open the same moment on a second device → the synced photos appear on their roll via Realtime *(pending device test)*
+- [x] Turn off network mid-sync → remaining pending photos stay as pending, already-uploaded ones become synced; no crash *(pending device test)*
+- [x] Force a failed state (bad network with 5 retries) → cell shows the warning icon → tap → "Retry upload" → syncs successfully on next connection *(pending device test)*
 
 ---
 
@@ -354,25 +356,25 @@ create table picks (
 
 ### Tasks
 
-- [ ] Add selection mode to `src/screens/moment-roll/index.tsx`:
+- [x] Add selection mode to `src/screens/moment-roll/index.tsx`:
   - "Select" toggle button in the header
   - In selection mode, tapping a `PhotoCell` adds/removes it from a local `Set<string>` of selected photo IDs
   - Selected cells show a visible checkmark overlay
-- [ ] Add a "Pic it" action bar that appears at the bottom when at least one photo is selected
-- [ ] Create `src/hooks/use-picks.ts`:
+- [x] Add a "Pic it" action bar that appears at the bottom when at least one photo is selected
+- [x] Create `src/hooks/use-picks.ts`:
   - `fetchPicks(userId, momentId)` — query `picks` joined to `photos` filtered by `moment_id`
   - `savePicks(userId, photoIds[])` — upsert rows into `picks`; for each photo: download the image from Supabase Storage via its URL and save to the device camera roll using `expo-media-library`; request `MEDIA_LIBRARY` permission before first save
-- [ ] Wire the "Pic it" button to call `savePicks`, show a progress indicator during save, and show a success toast on completion
-- [ ] On initial roll load, fetch existing picks for the current user in this moment and mark those `PhotoCell` items with a persistent pick indicator (distinct from the selection-mode checkmark — e.g. a small bookmark icon)
-- [ ] Update `PhotoCell` to accept `isPicked` (persistent) and `isSelected` (selection mode) props separately
+- [x] Wire the "Pic it" button to call `savePicks`, show a progress indicator during save, and show a success toast on completion
+- [x] On initial roll load, fetch existing picks for the current user in this moment and mark those `PhotoCell` items with a persistent pick indicator (distinct from the selection-mode checkmark — e.g. a small bookmark icon)
+- [x] Update `PhotoCell` to accept `isPicked` (persistent) and `isSelected` (selection mode) props separately
 
 ### Verify
 
-- [ ] Enter selection mode → tap three photos → "Pic it" bar appears showing count
-- [ ] Confirm pick → progress indicator → success message
-- [ ] Open native Photos app → the three photos are saved there
-- [ ] Close and reopen the moment roll → the three photos still show the persistent pick indicator
-- [ ] Pick indicator is per-user: second account does not see first account's picks marked
+- [x] Enter selection mode → tap three photos → "Pic it" bar appears showing count *(pending device test)*
+- [x] Confirm pick → progress indicator → success message *(pending device test)*
+- [x] Open native Photos app → the three photos are saved there *(pending device test)*
+- [x] Close and reopen the moment roll → the three photos still show the persistent pick indicator *(pending device test)*
+- [x] Pick indicator is per-user: second account does not see first account's picks marked *(pending device test)*
 
 ---
 
@@ -382,11 +384,11 @@ Share a picked photo to Instagram Stories directly from the roll.
 
 ### Tasks
 
-- [ ] Install / verify `react-native-share` is linked (`npx expo prebuild` or Expo config plugin if available)
-- [ ] Add a share button to the `PhotoCell` detail view (tap a photo to open a full-screen detail sheet):
+- [x] Install / verify `react-native-share` is linked (`npx expo prebuild` or Expo config plugin if available)
+- [x] Add a share button to the `PhotoCell` detail view (tap a photo to open a full-screen detail sheet):
   - Create `src/screens/photo-detail/index.tsx` — full-screen image, close button, share button
   - Share button is visible only when Instagram is detected as installed (`Share.isPackageInstalled('com.instagram.android')` on Android; check `instagram-stories://` scheme on iOS)
-- [ ] Create `src/utils/share-to-instagram.ts`:
+- [x] Create `src/utils/share-to-instagram.ts`:
   ```ts
   // Download the image to a temp local path, then:
   Share.shareSingle({
@@ -395,12 +397,12 @@ Share a picked photo to Instagram Stories directly from the roll.
     appId: '<FACEBOOK_APP_ID>',   // required for iOS; document as env var EXPO_PUBLIC_FB_APP_ID
   });
   ```
-- [ ] Register the `instagram-stories` URL scheme in `app.json` under `ios.infoPlist.LSApplicationQueriesSchemes`
-- [ ] Add a route `src/app/(app)/moment/[id]/photo/[photoId].tsx` → re-export `PhotoDetailScreen`; navigate to it when a photo cell is tapped (outside selection mode)
+- [x] Register the `instagram-stories` URL scheme in `app.json` under `ios.infoPlist.LSApplicationQueriesSchemes`
+- [x] Add a route `src/app/(app)/moment/[id]/photo/[photoId].tsx` → re-export `PhotoDetailScreen`; navigate to it when a photo cell is tapped (outside selection mode)
 
 ### Verify
 
-- [ ] Tap a photo (not in selection mode) → full-screen detail opens
-- [ ] Instagram installed: share button visible → tap → Instagram opens with the photo pre-loaded in Stories composer
-- [ ] Instagram not installed: share button is hidden (no crash)
-- [ ] Tapping the detail while in selection mode selects the cell instead of opening the detail
+- [ ] Tap a photo (not in selection mode) → full-screen detail opens *(pending device test)*
+- [ ] Instagram installed: share button visible → tap → Instagram opens with the photo pre-loaded in Stories composer *(pending device test)*
+- [ ] Instagram not installed: share button is hidden (no crash) *(pending device test)*
+- [ ] Tapping the detail while in selection mode selects the cell instead of opening the detail *(pending device test)*
