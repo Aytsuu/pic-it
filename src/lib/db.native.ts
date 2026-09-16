@@ -29,4 +29,27 @@ db.execSync(`
     created_at    text not null,
     cached_at     integer not null
   );
+
+  create table if not exists photo_files (
+    photo_id    text primary key,
+    moment_id   text not null,
+    local_uri   text not null,
+    cached_at   integer not null
+  );
+
+  create table if not exists cached_picks (
+    user_id     text not null,
+    photo_id    text not null,
+    moment_id   text not null,
+    cached_at   integer not null,
+    primary key (user_id, photo_id)
+  );
+
+  create table if not exists pending_picks (
+    user_id     text not null,
+    photo_id    text not null,
+    moment_id   text not null,
+    created_at  integer not null,
+    primary key (user_id, photo_id)
+  );
 `);

@@ -24,9 +24,33 @@ type CachedPhotoRow = {
   cached_at: number;
 };
 
+type PhotoFileRow = {
+  photo_id: string;
+  moment_id: string;
+  local_uri: string;
+  cached_at: number;
+};
+
+type CachedPickRow = {
+  user_id: string;
+  photo_id: string;
+  moment_id: string;
+  cached_at: number;
+};
+
+type PendingPickRow = {
+  user_id: string;
+  photo_id: string;
+  moment_id: string;
+  created_at: number;
+};
+
 const rows: UnsyncedPhotoRow[] = [];
 const cachedMoments: CachedMomentRow[] = [];
 const cachedPhotos: CachedPhotoRow[] = [];
+const photoFiles: PhotoFileRow[] = [];
+const cachedPicks: CachedPickRow[] = [];
+const pendingPicks: PendingPickRow[] = [];
 
 function matchWhere(sql: string, params: unknown[]): UnsyncedPhotoRow[] {
   if (sql.includes('sync_status = \'pending\'')) {
@@ -56,6 +80,12 @@ function getDistinctPendingMomentIds(): { moment_id: string }[] {
 export const db = {
   execSync: () => {},
   getFirstSync: <T>(sql: string, params: unknown[] = []): T | null => {
+    if (sql.includes('from photo_files')) {
+      const [photo_id] = params as [string];
+      const row = photoFiles.find((item) => item.photo_id === photo_id);
+      return row ? ({ local_uri: row.local_uri } as T) : null;
+    }
+
     const [local_id] = params as [string];
     const row = rows.find((item) => item.local_id === local_id);
     return row ? ({ sync_status: row.sync_status } as T) : null;
@@ -150,6 +180,61 @@ export const db = {
       const [local_id] = params as [string];
       const row = rows.find((item) => item.local_id === local_id);
       if (row) row.sync_status = 'pending';
+      return;
+    }
+
+    if (sql.includes('insert or replace into photo_files')) {
+      const [photo_id, moment_id, local_uri, cached_at] = params as [
+        string,
+        string,
+        string,
+        number,
+      ];
+      const index = photoFiles.findIndex((row) => row.photo_id === photo_id);
+      const next = { photo_id, moment_id, local_uri, cached_at };
+      if (index >= 0) photoFiles[index] = next;
+      else photoFiles.push(next);
+      return;
+    }
+
+    if (sql.includes('insert or replace into cached_picks')) {
+      const [user_id, photo_id, moment_id, cached_at] = params as [
+        string,
+        string,
+        string,
+        number,
+      ];
+      const index = cachedPicks.findIndex(
+        (row) => row.user_id === user_id && row.photo_id === photo_id
+      );
+      const next = { user_id, photo_id, moment_id, cached_at };
+      if (index >= 0) cachedPicks[index] = next;
+      else cachedPicks.push(next);
+      return;
+    }
+
+    if (sql.includes('insert or replace into pending_picks')) {
+      const [user_id, photo_id, moment_id, created_at] = params as [
+        string,
+        string,
+        string,
+        number,
+      ];
+      const index = pendingPicks.findIndex(
+        (row) => row.user_id === user_id && row.photo_id === photo_id
+      );
+      const next = { user_id, photo_id, moment_id, created_at };
+      if (index >= 0) pendingPicks[index] = next;
+      else pendingPicks.push(next);
+      return;
+    }
+
+    if (sql.startsWith('delete from pending_picks')) {
+      const [user_id, photo_id] = params as [string, string];
+      const index = pendingPicks.findIndex(
+        (row) => row.user_id === user_id && row.photo_id === photo_id
+      );
+      if (index >= 0) pendingPicks.splice(index, 1);
     }
   },
   getAllSync: <T>(sql: string, params: unknown[] = []): T[] => {
@@ -175,6 +260,26 @@ export const db = {
           storage_path: row.storage_path,
           created_at: row.created_at,
         })) as T[];
+    }
+
+    if (sql.includes('from cached_picks')) {
+      const [user_id, moment_id] = params as [string, string];
+      return cachedPicks
+        .filter((row) => row.user_id === user_id && row.moment_id === moment_id)
+        .map((row) => ({ photo_id: row.photo_id })) as T[];
+    }
+
+    if (sql.includes('from pending_picks')) {
+      const [user_id, moment_id] = params as [string, string | undefined];
+      if (moment_id !== undefined) {
+        return pendingPicks
+          .filter((row) => row.user_id === user_id && row.moment_id === moment_id)
+          .map((row) => ({ photo_id: row.photo_id })) as T[];
+      }
+
+      return pendingPicks
+        .filter((row) => row.user_id === user_id)
+        .map((row) => ({ photo_id: row.photo_id, moment_id: row.moment_id })) as T[];
     }
 
     if (sql.includes('distinct moment_id')) {

@@ -8,6 +8,9 @@ export type GridItem = {
   key: string;
   source: string;
   syncStatus: SyncStatus;
+  isPicked?: boolean;
+  isSelected?: boolean;
+  onPress?: () => void;
   onFailedPress?: () => void;
 };
 
@@ -23,6 +26,9 @@ export function PhotoGrid({ items }: Props) {
         <PhotoCell
           source={item.source}
           syncStatus={item.syncStatus}
+          isPicked={item.isPicked}
+          isSelected={item.isSelected}
+          onPress={item.onPress}
           onFailedPress={item.onFailedPress}
         />
       )}

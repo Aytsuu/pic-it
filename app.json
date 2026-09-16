@@ -35,7 +35,14 @@
       ],
       "expo-sqlite",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Pic It to access your photos.",
+          "savePhotosPermission": "Allow Pic It to save photos to your camera roll."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -44,6 +44,27 @@ export function getAll(momentId: string): UnsyncedPhoto[] {
   );
 }
 
+export function getByLocalId(localId: string): UnsyncedPhoto | null {
+  return (
+    db.getFirstSync<UnsyncedPhoto>(`select * from unsynced_photos where local_id = ?`, [localId]) ??
+    null
+  );
+}
+
+export function getRemoteId(photoId: string): string | null {
+  const row = db.getFirstSync<{ remote_id: string | null }>(
+    `select remote_id from unsynced_photos where local_id = ?`,
+    [photoId]
+  );
+  return row?.remote_id ?? null;
+}
+
+/** True when the id belongs to a photo that has not been uploaded yet. */
+export function isUnsyncedLocalId(photoId: string): boolean {
+  const photo = getByLocalId(photoId);
+  return photo !== null && photo.remote_id === null;
+}
+
 export function getPending(momentId: string): UnsyncedPhoto[] {
   return db.getAllSync<UnsyncedPhoto>(
     `select * from unsynced_photos where moment_id = ? and sync_status = 'pending' order by created_at asc`,

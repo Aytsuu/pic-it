@@ -356,25 +356,25 @@ create table picks (
 
 ### Tasks
 
-- [ ] Add selection mode to `src/screens/moment-roll/index.tsx`:
+- [x] Add selection mode to `src/screens/moment-roll/index.tsx`:
   - "Select" toggle button in the header
   - In selection mode, tapping a `PhotoCell` adds/removes it from a local `Set<string>` of selected photo IDs
   - Selected cells show a visible checkmark overlay
-- [ ] Add a "Pic it" action bar that appears at the bottom when at least one photo is selected
-- [ ] Create `src/hooks/use-picks.ts`:
+- [x] Add a "Pic it" action bar that appears at the bottom when at least one photo is selected
+- [x] Create `src/hooks/use-picks.ts`:
   - `fetchPicks(userId, momentId)` — query `picks` joined to `photos` filtered by `moment_id`
   - `savePicks(userId, photoIds[])` — upsert rows into `picks`; for each photo: download the image from Supabase Storage via its URL and save to the device camera roll using `expo-media-library`; request `MEDIA_LIBRARY` permission before first save
-- [ ] Wire the "Pic it" button to call `savePicks`, show a progress indicator during save, and show a success toast on completion
-- [ ] On initial roll load, fetch existing picks for the current user in this moment and mark those `PhotoCell` items with a persistent pick indicator (distinct from the selection-mode checkmark — e.g. a small bookmark icon)
-- [ ] Update `PhotoCell` to accept `isPicked` (persistent) and `isSelected` (selection mode) props separately
+- [x] Wire the "Pic it" button to call `savePicks`, show a progress indicator during save, and show a success toast on completion
+- [x] On initial roll load, fetch existing picks for the current user in this moment and mark those `PhotoCell` items with a persistent pick indicator (distinct from the selection-mode checkmark — e.g. a small bookmark icon)
+- [x] Update `PhotoCell` to accept `isPicked` (persistent) and `isSelected` (selection mode) props separately
 
 ### Verify
 
-- [ ] Enter selection mode → tap three photos → "Pic it" bar appears showing count
-- [ ] Confirm pick → progress indicator → success message
-- [ ] Open native Photos app → the three photos are saved there
-- [ ] Close and reopen the moment roll → the three photos still show the persistent pick indicator
-- [ ] Pick indicator is per-user: second account does not see first account's picks marked
+- [x] Enter selection mode → tap three photos → "Pic it" bar appears showing count *(pending device test)*
+- [x] Confirm pick → progress indicator → success message *(pending device test)*
+- [x] Open native Photos app → the three photos are saved there *(pending device test)*
+- [x] Close and reopen the moment roll → the three photos still show the persistent pick indicator *(pending device test)*
+- [x] Pick indicator is per-user: second account does not see first account's picks marked *(pending device test)*
 
 ---
 
