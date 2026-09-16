@@ -128,6 +128,17 @@ export function MomentRollScreen() {
       isPicked: pickedIds.has(photo.id),
       isSelected: selectedIds.has(photo.id),
       onPress: isSelecting ? () => toggleSelect(photo.id) : undefined,
+      onDetailPress: !isSelecting
+        ? () =>
+            router.push({
+              pathname: '/moment/[id]/photo/[photoId]' as any,
+              params: {
+                id: momentId!,
+                photoId: photo.id,
+                storagePath: photo.storage_path,
+              },
+            })
+        : undefined,
     }));
 
     const localItems: SortedGridItem[] = local.map((photo) => ({
@@ -138,6 +149,16 @@ export function MomentRollScreen() {
       isPicked: pickedIds.has(photo.local_id),
       isSelected: selectedIds.has(photo.local_id),
       onPress: isSelecting ? () => toggleSelect(photo.local_id) : undefined,
+      onDetailPress: !isSelecting
+        ? () =>
+            router.push({
+              pathname: '/moment/[id]/photo/[photoId]' as any,
+              params: {
+                id: momentId!,
+                photoId: photo.local_id,
+              },
+            })
+        : undefined,
       onFailedPress:
         photo.sync_status === 'failed'
           ? () => {
@@ -161,7 +182,7 @@ export function MomentRollScreen() {
     return [...remoteItems, ...localItems]
       .sort((a, b) => b.sortTime - a.sortTime)
       .map(({ sortTime: _sortTime, ...item }) => item);
-  }, [remoteQuery.data, momentId, user, localRefreshKey, pickedIds, selectedIds, isSelecting]);
+  }, [remoteQuery.data, momentId, user, localRefreshKey, pickedIds, selectedIds, isSelecting, router]);
 
   async function handlePicIt() {
     try {

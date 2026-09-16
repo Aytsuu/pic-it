@@ -8,6 +8,7 @@ type Props = {
   isPicked?: boolean;
   isSelected?: boolean;
   onPress?: () => void;
+  onDetailPress?: () => void;
   onFailedPress?: () => void;
 };
 
@@ -17,6 +18,7 @@ export function PhotoCell({
   isPicked = false,
   isSelected = false,
   onPress,
+  onDetailPress,
   onFailedPress,
 }: Props) {
   const syncBadge =
@@ -31,7 +33,11 @@ export function PhotoCell({
       onFailedPress?.();
       return;
     }
-    onPress?.();
+    if (onPress) {
+      onPress();
+      return;
+    }
+    onDetailPress?.();
   }
 
   return (

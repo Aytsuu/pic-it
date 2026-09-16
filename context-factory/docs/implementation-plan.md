@@ -384,11 +384,11 @@ Share a picked photo to Instagram Stories directly from the roll.
 
 ### Tasks
 
-- [ ] Install / verify `react-native-share` is linked (`npx expo prebuild` or Expo config plugin if available)
-- [ ] Add a share button to the `PhotoCell` detail view (tap a photo to open a full-screen detail sheet):
+- [x] Install / verify `react-native-share` is linked (`npx expo prebuild` or Expo config plugin if available)
+- [x] Add a share button to the `PhotoCell` detail view (tap a photo to open a full-screen detail sheet):
   - Create `src/screens/photo-detail/index.tsx` — full-screen image, close button, share button
   - Share button is visible only when Instagram is detected as installed (`Share.isPackageInstalled('com.instagram.android')` on Android; check `instagram-stories://` scheme on iOS)
-- [ ] Create `src/utils/share-to-instagram.ts`:
+- [x] Create `src/utils/share-to-instagram.ts`:
   ```ts
   // Download the image to a temp local path, then:
   Share.shareSingle({
@@ -397,12 +397,12 @@ Share a picked photo to Instagram Stories directly from the roll.
     appId: '<FACEBOOK_APP_ID>',   // required for iOS; document as env var EXPO_PUBLIC_FB_APP_ID
   });
   ```
-- [ ] Register the `instagram-stories` URL scheme in `app.json` under `ios.infoPlist.LSApplicationQueriesSchemes`
-- [ ] Add a route `src/app/(app)/moment/[id]/photo/[photoId].tsx` → re-export `PhotoDetailScreen`; navigate to it when a photo cell is tapped (outside selection mode)
+- [x] Register the `instagram-stories` URL scheme in `app.json` under `ios.infoPlist.LSApplicationQueriesSchemes`
+- [x] Add a route `src/app/(app)/moment/[id]/photo/[photoId].tsx` → re-export `PhotoDetailScreen`; navigate to it when a photo cell is tapped (outside selection mode)
 
 ### Verify
 
-- [ ] Tap a photo (not in selection mode) → full-screen detail opens
-- [ ] Instagram installed: share button visible → tap → Instagram opens with the photo pre-loaded in Stories composer
-- [ ] Instagram not installed: share button is hidden (no crash)
-- [ ] Tapping the detail while in selection mode selects the cell instead of opening the detail
+- [ ] Tap a photo (not in selection mode) → full-screen detail opens *(pending device test)*
+- [ ] Instagram installed: share button visible → tap → Instagram opens with the photo pre-loaded in Stories composer *(pending device test)*
+- [ ] Instagram not installed: share button is hidden (no crash) *(pending device test)*
+- [ ] Tapping the detail while in selection mode selects the cell instead of opening the detail *(pending device test)*

@@ -11,6 +11,7 @@ export type GridItem = {
   isPicked?: boolean;
   isSelected?: boolean;
   onPress?: () => void;
+  onDetailPress?: () => void;
   onFailedPress?: () => void;
 };
 
@@ -29,6 +30,7 @@ export function PhotoGrid({ items }: Props) {
           isPicked={item.isPicked}
           isSelected={item.isSelected}
           onPress={item.onPress}
+          onDetailPress={item.onDetailPress}
           onFailedPress={item.onFailedPress}
         />
       )}
