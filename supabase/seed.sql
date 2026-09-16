@@ -1,2 +1,5 @@
 -- Seed data for local development.
--- Add INSERT statements here after migrations are defined.
+
+insert into storage.buckets (id, name, public)
+values ('moment-photos', 'moment-photos', true)
+on conflict (id) do update set public = excluded.public;

@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Button, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
+import { saveMoments } from '@/lib/offline-cache';
+import { supabase } from '@/lib/supabase';
 
 export function JoinMomentScreen() {
   const [code, setCode] = useState('');
@@ -17,7 +18,7 @@ export function JoinMomentScreen() {
 
     const { data: moment, error: lookupErr } = await supabase
       .from('moments')
-      .select('id')
+      .select('id, name, created_at')
       .eq('code', code.toUpperCase())
       .single();
 
@@ -34,6 +35,14 @@ export function JoinMomentScreen() {
       setError(memberErr.message);
       return;
     }
+
+    saveMoments(user.id, [
+      {
+        id: moment.id,
+        name: moment.name,
+        created_at: moment.created_at,
+      },
+    ]);
 
     router.replace(`/moment/${moment.id}` as any);
   }

@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Button, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/use-auth';
+import { saveMoments } from '@/lib/offline-cache';
+import { supabase } from '@/lib/supabase';
 import { generateCode } from '@/utils/generate-code';
 
 export function CreateMomentScreen() {
@@ -30,6 +31,14 @@ export function CreateMomentScreen() {
     }
 
     await supabase.from('members').insert({ moment_id: moment.id, user_id: user.id });
+
+    saveMoments(user.id, [
+      {
+        id: moment.id,
+        name: name.trim(),
+        created_at: new Date().toISOString(),
+      },
+    ]);
 
     router.replace(`/moment/${moment.id}` as any);
   }

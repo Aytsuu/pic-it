@@ -4,6 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 
 import { MomentCard } from '@/components/moment-card';
 import { useAuth } from '@/hooks/use-auth';
+import {
+  CachedMemberRow,
+  fetchWithCache,
+  getCachedMoments,
+  saveMoments,
+} from '@/lib/offline-cache';
 import { supabase } from '@/lib/supabase';
 
 type MomentSummary = {
@@ -17,7 +23,7 @@ type MemberRow = {
   moments: MomentSummary | MomentSummary[] | null;
 };
 
-function getMoment(row: MemberRow): MomentSummary | null {
+function getMoment(row: MemberRow | CachedMemberRow): MomentSummary | null {
   if (!row.moments) return null;
   return Array.isArray(row.moments) ? row.moments[0] ?? null : row.moments;
 }
@@ -26,22 +32,35 @@ export function MomentsListScreen() {
   const { user, signOut } = useAuth();
   const router = useRouter();
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['moments', user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data: rows, error: queryError } = await supabase
-        .from('members')
-        .select('moment_id, moments(id, name, created_at)')
-        .eq('user_id', user!.id);
+      const userId = user!.id;
 
-      if (queryError) throw queryError;
-      return (rows ?? []) as MemberRow[];
+      return fetchWithCache({
+        fetchRemote: async () => {
+          const { data: rows, error: queryError } = await supabase
+            .from('members')
+            .select('moment_id, moments(id, name, created_at)')
+            .eq('user_id', userId);
+
+          if (queryError) throw queryError;
+          return (rows ?? []) as MemberRow[];
+        },
+        readCache: () => getCachedMoments(userId),
+        writeCache: (rows) => {
+          const moments = rows
+            .map((row) => getMoment(row))
+            .filter((moment): moment is MomentSummary => moment !== null);
+
+          saveMoments(userId, moments);
+        },
+      });
     },
   });
 
   if (isLoading) return <ActivityIndicator style={{ flex: 1 }} />;
-  if (error) return <Text style={{ padding: 24 }}>Failed to load moments</Text>;
 
   if (!data?.length) {
     return (

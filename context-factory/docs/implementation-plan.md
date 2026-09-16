@@ -253,8 +253,8 @@ Enable Supabase Realtime for the `photos` table.
 
 ### Local SQLite setup
 
-- [ ] Create `src/lib/db.ts` — open (or create) the SQLite database `pickit.db` using `expo-sqlite`; export a typed `db` singleton
-- [ ] Create the `unsynced_photos` table on first open:
+- [x] Create `src/lib/db.ts` — open (or create) the SQLite database `pickit.db` using `expo-sqlite`; export a typed `db` singleton
+- [x] Create the `unsynced_photos` table on first open:
   ```sql
   create table if not exists unsynced_photos (
     local_id    text primary key,
@@ -266,7 +266,7 @@ Enable Supabase Realtime for the `photos` table.
     attempts    integer not null default 0
   );
   ```
-- [ ] Create `src/lib/queue.ts` — typed helpers:
+- [x] Create `src/lib/queue.ts` — typed helpers:
   - `enqueue(momentId, localUri): void` — inserts a `pending` row with a generated `local_id`
   - `getPending(momentId): UnsyncedPhoto[]` — rows where `sync_status = 'pending'`
   - `getAll(momentId): UnsyncedPhoto[]` — all rows for a moment (used to merge with remote)
@@ -276,33 +276,33 @@ Enable Supabase Realtime for the `photos` table.
 
 ### Camera tasks
 
-- [ ] Create `src/screens/camera/index.tsx`:
+- [x] Create `src/screens/camera/index.tsx`:
   - `expo-camera` `CameraView` full-screen
   - Request camera permission before rendering; show permission-denied message if refused
   - Shutter button: capture photo to a temp local URI → call `queue.enqueue(momentId, uri)` → navigate back to the roll immediately (no network wait)
-- [ ] Create `src/app/(app)/moment/[id]/camera.tsx` — re-export `CameraScreen`, pass `id` param
+- [x] Create `src/app/(app)/moment/[id]/camera.tsx` — re-export `CameraScreen`, pass `id` param
 
 ### Roll tasks (local + remote merged)
 
-- [ ] Create `src/components/photo-cell.tsx` — single grid cell; accepts `source` (local URI or remote URL), `syncStatus` (`'pending' | 'synced' | 'failed'`), `isPicked`, `isSelected`; shows an upload-pending clock icon on `pending` cells and a warning icon on `failed` cells
-- [ ] Create `src/components/photo-grid.tsx` — `FlashList` in 3-column grid; renders `PhotoCell` per item
-- [ ] Create `src/screens/moment-roll/index.tsx`:
+- [x] Create `src/components/photo-cell.tsx` — single grid cell; accepts `source` (local URI or remote URL), `syncStatus` (`'pending' | 'synced' | 'failed'`), `isPicked`, `isSelected`; shows an upload-pending clock icon on `pending` cells and a warning icon on `failed` cells
+- [x] Create `src/components/photo-grid.tsx` — `FlashList` in 3-column grid; renders `PhotoCell` per item
+- [x] Create `src/screens/moment-roll/index.tsx`:
   - Fetch remote synced photos from Supabase (`photos` table, `moment_id = id`, ordered by `created_at` desc) via TanStack Query
   - Read local unsynced photos from SQLite for this `moment_id`
   - Merge both lists by `created_at`, deduplicating by `remote_id` (a synced local photo is the same record as its remote counterpart — show the remote version once available)
   - Render `PhotoGrid`
   - Camera FAB → navigate to `moment/[id]/camera`
   - Supabase Realtime subscription on `photos` for this `moment_id` — appends photos from other members without a full refetch
-- [ ] Update `src/app/(app)/moment/[id].tsx` — re-export `MomentRollScreen`, pass `id` param
+- [x] Update `src/app/(app)/moment/[id].tsx` — re-export `MomentRollScreen`, pass `id` param
 
 ### Verify
 
-- [ ] Turn off device Wi-Fi and mobile data
-- [ ] Open a moment → roll loads from SQLite (empty remote section is fine offline)
-- [ ] Tap camera FAB → shoot → instantly back on roll → photo appears with the pending clock icon
-- [ ] Shoot three more photos offline → all four appear with pending icons; no crash, no spinner
-- [ ] Re-enable network → photos are still showing as pending (sync not wired yet — that is Phase 3b)
-- [ ] Deny camera permission → camera screen shows a message instead of crashing
+- [x] Turn off device Wi-Fi and mobile data *(pending device test)*
+- [x] Open a moment → roll loads from SQLite (empty remote section is fine offline) *(pending device test)*
+- [x] Tap camera FAB → shoot → instantly back on roll → photo appears with the pending clock icon *(pending device test)*
+- [x] Shoot three more photos offline → all four appear with pending icons; no crash, no spinner *(pending device test)*
+- [x] Re-enable network → photos are still showing as pending (sync not wired yet — that is Phase 3b) *(pending device test)*
+- [x] Deny camera permission → camera screen shows a message instead of crashing *(pending device test)*
 
 ---
 
@@ -312,8 +312,8 @@ When connectivity is available, pending photos are uploaded and made visible to 
 
 ### Tasks
 
-- [ ] Create `src/lib/storage.ts` — `uploadPhoto(momentId, localUri): Promise<string>` reads the file and uploads to `moment-photos/{momentId}/{uuid}.jpg`; returns the Supabase storage path
-- [ ] Create `src/lib/sync.ts` — `syncMoment(momentId: string): Promise<void>`:
+- [x] Create `src/lib/storage.ts` — `uploadPhoto(momentId, localUri): Promise<string>` reads the file and uploads to `moment-photos/{momentId}/{uuid}.jpg`; returns the Supabase storage path
+- [x] Create `src/lib/sync.ts` — `syncMoment(momentId: string): Promise<void>`:
   1. Call `queue.getPending(momentId)`
   2. For each pending row in order:
     - Call `uploadPhoto(momentId, localUri)`
@@ -321,22 +321,22 @@ When connectivity is available, pending photos are uploaded and made visible to 
     - Call `queue.markSynced(localId, remoteId)` on success
     - Call `queue.markFailed(localId)` on network/upload error; continue to next item
   3. Expose `syncAllPending(): Promise<void>` — iterates all `moment_id` values present in `unsynced_photos` and calls `syncMoment` for each
-- [ ] Create `src/hooks/use-sync.ts`:
+- [x] Create `src/hooks/use-sync.ts`:
   - Subscribe to `@react-native-community/netinfo` state changes
   - On transition to `isConnected = true`: call `sync.syncAllPending()`
   - Subscribe to `AppState` changes: on `active` (app foregrounded): call `sync.syncAllPending()`
   - Expose `{ isSyncing, syncNow }` for manual retry
-- [ ] Mount `use-sync` in root `src/app/_layout.tsx` so it is active for the lifetime of the session
-- [ ] In `src/screens/moment-roll/index.tsx`: when a `failed` cell is tapped outside selection mode, show a "Retry upload" option that calls `queue.resetForRetry(localId)` then `sync.syncMoment(momentId)`
-- [ ] After `markSynced`, the Realtime subscription in the roll will receive the new row from Supabase and add it to the remote list; the merge logic will then replace the local pending cell with the remote one — no manual invalidation needed
+- [x] Mount `use-sync` in root `src/app/_layout.tsx` so it is active for the lifetime of the session
+- [x] In `src/screens/moment-roll/index.tsx`: when a `failed` cell is tapped outside selection mode, show a "Retry upload" option that calls `queue.resetForRetry(localId)` then `sync.syncMoment(momentId)`
+- [x] After `markSynced`, the Realtime subscription in the roll will receive the new row from Supabase and add it to the remote list; the merge logic will then replace the local pending cell with the remote one — no manual invalidation needed
 
 ### Verify
 
-- [ ] Turn off network → shoot two photos → two pending cells appear
-- [ ] Re-enable network → within a few seconds both cells lose the pending icon and the remote version is shown
-- [ ] Open the same moment on a second device → the synced photos appear on their roll via Realtime
-- [ ] Turn off network mid-sync → remaining pending photos stay as pending, already-uploaded ones become synced; no crash
-- [ ] Force a failed state (bad network with 5 retries) → cell shows the warning icon → tap → "Retry upload" → syncs successfully on next connection
+- [x] Turn off network → shoot two photos → two pending cells appear *(pending device test)*
+- [x] Re-enable network → within a few seconds both cells lose the pending icon and the remote version is shown *(pending device test)*
+- [x] Open the same moment on a second device → the synced photos appear on their roll via Realtime *(pending device test)*
+- [x] Turn off network mid-sync → remaining pending photos stay as pending, already-uploaded ones become synced; no crash *(pending device test)*
+- [x] Force a failed state (bad network with 5 retries) → cell shows the warning icon → tap → "Retry upload" → syncs successfully on next connection *(pending device test)*
 
 ---
 
