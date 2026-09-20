@@ -30,6 +30,7 @@ type RemotePhoto = {
   id: string;
   storage_path: string;
   created_at: string;
+  uploaded_by: string;
 };
 
 type SortedGridItem = GridItem & { sortTime: number };
@@ -57,7 +58,7 @@ export function MomentRollScreen() {
         fetchRemote: async () => {
           const { data, error } = await supabase
             .from('photos')
-            .select('id, storage_path, created_at')
+            .select('id, storage_path, created_at, uploaded_by')
             .eq('moment_id', id)
             .order('created_at', { ascending: false });
 
@@ -86,7 +87,7 @@ export function MomentRollScreen() {
     });
   }
 
-  const onPhotoInsert = useCallback(() => {
+  const onPhotosChanged = useCallback(() => {
     if (!momentId) return;
     void queryClient.invalidateQueries({ queryKey: ['photos', momentId] });
     setLocalRefreshKey((key) => key + 1);
@@ -99,7 +100,7 @@ export function MomentRollScreen() {
     }, [fetchPicks])
   );
 
-  useMomentPhotoInserts(momentId, onPhotoInsert);
+  useMomentPhotoInserts(momentId, onPhotosChanged);
 
   const items = useMemo(() => {
     const remote = remoteQuery.data ?? [];
@@ -136,6 +137,7 @@ export function MomentRollScreen() {
                 id: momentId!,
                 photoId: photo.id,
                 storagePath: photo.storage_path,
+                canDelete: photo.uploaded_by === user?.id ? '1' : '0',
               },
             })
         : undefined,
@@ -156,6 +158,7 @@ export function MomentRollScreen() {
               params: {
                 id: momentId!,
                 photoId: photo.local_id,
+                canDelete: '1',
               },
             })
         : undefined,

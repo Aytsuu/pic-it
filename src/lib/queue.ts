@@ -113,6 +113,28 @@ export function resetForRetry(localId: string): void {
   );
 }
 
+export function remove(localId: string): UnsyncedPhoto | null {
+  const photo = getByLocalId(localId);
+  if (!photo) return null;
+
+  db.runSync(`delete from unsynced_photos where local_id = ?`, [localId]);
+  return photo;
+}
+
+export function getByRemoteId(remoteId: string): UnsyncedPhoto | null {
+  return (
+    db.getFirstSync<UnsyncedPhoto>(`select * from unsynced_photos where remote_id = ?`, [
+      remoteId,
+    ]) ?? null
+  );
+}
+
+export function removeByRemoteId(remoteId: string): UnsyncedPhoto | null {
+  const photo = getByRemoteId(remoteId);
+  if (!photo) return null;
+  return remove(photo.local_id);
+}
+
 /** Map syncing rows to pending for display purposes. */
 export function toDisplayStatus(status: SyncStatus): SyncStatus {
   return status === 'syncing' ? 'pending' : status;

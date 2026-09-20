@@ -1,1 +1,7 @@
-export { downloadPhotoToCache, fileExists } from './photo-files.native';
+export {
+  deleteCachedPhotoFile,
+  deleteLocalFile,
+  downloadPhotoToCache,
+  fileExists,
+  getCachedPhotoPath,
+} from './photo-files.native';

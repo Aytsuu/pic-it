@@ -1,1 +1,1 @@
-export { uploadPhoto } from './storage.native';
+export { deletePhotoFromStorage, uploadPhoto } from './storage.native';

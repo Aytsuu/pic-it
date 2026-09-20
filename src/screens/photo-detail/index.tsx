@@ -9,22 +9,31 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 
+import { useAuth } from '@/hooks/use-auth';
+import { deletePhoto } from '@/lib/photo-delete';
 import { resolvePhotoUri } from '@/lib/photo-cache';
 import { canShareToInstagram, shareToInstagramStories } from '@/utils/share-to-instagram';
 
 export function PhotoDetailScreen() {
   const router = useRouter();
-  const { id: momentId, photoId, storagePath } = useLocalSearchParams<{
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { id: momentId, photoId, storagePath, canDelete } = useLocalSearchParams<{
     id: string;
     photoId: string;
     storagePath?: string;
+    canDelete?: string;
   }>();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [canShare, setCanShare] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const showDelete = canDelete === '1';
 
   useEffect(() => {
     if (!momentId || !photoId) return;
@@ -70,6 +79,33 @@ export function PhotoDetailScreen() {
     }
   }, [imageUri, isSharing]);
 
+  const handleDelete = useCallback(() => {
+    if (!user || !momentId || !photoId || isDeleting) return;
+
+    Alert.alert('Delete photo?', 'This removes the photo from the moment for everyone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            setIsDeleting(true);
+            const result = await deletePhoto(user.id, momentId, photoId, storagePath);
+            setIsDeleting(false);
+
+            if (!result.ok) {
+              Alert.alert('Could not delete', result.error);
+              return;
+            }
+
+            void queryClient.invalidateQueries({ queryKey: ['photos', momentId] });
+            router.back();
+          })();
+        },
+      },
+    ]);
+  }, [user, momentId, photoId, storagePath, isDeleting, queryClient, router]);
+
   return (
     <View style={styles.container}>
       {imageUri ? (
@@ -85,15 +121,27 @@ export function PhotoDetailScreen() {
           <Text style={styles.headerButtonText}>Close</Text>
         </Pressable>
 
-        {canShare && imageUri && (
-          <Pressable
-            onPress={() => void handleShare()}
-            disabled={isSharing}
-            style={[styles.headerButton, styles.shareButton, isSharing && styles.disabled]}
-          >
-            <Text style={styles.headerButtonText}>{isSharing ? 'Sharing…' : 'Share'}</Text>
-          </Pressable>
-        )}
+        <View style={styles.headerActions}>
+          {showDelete && (
+            <Pressable
+              onPress={handleDelete}
+              disabled={isDeleting}
+              style={[styles.headerButton, styles.deleteButton, isDeleting && styles.disabled]}
+            >
+              <Text style={styles.headerButtonText}>{isDeleting ? 'Deleting…' : 'Delete'}</Text>
+            </Pressable>
+          )}
+
+          {canShare && imageUri && (
+            <Pressable
+              onPress={() => void handleShare()}
+              disabled={isSharing}
+              style={[styles.headerButton, styles.shareButton, isSharing && styles.disabled]}
+            >
+              <Text style={styles.headerButtonText}>{isSharing ? 'Sharing…' : 'Share'}</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -117,8 +165,13 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingTop: 48,
     paddingHorizontal: 16,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
   headerButton: {
     paddingHorizontal: 12,
@@ -128,6 +181,9 @@ const styles = StyleSheet.create({
   },
   shareButton: {
     backgroundColor: 'rgba(32,138,239,0.85)',
+  },
+  deleteButton: {
+    backgroundColor: 'rgba(255,59,48,0.9)',
   },
   disabled: {
     opacity: 0.6,
