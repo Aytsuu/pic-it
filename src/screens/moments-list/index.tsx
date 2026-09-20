@@ -1,13 +1,25 @@
 import { BlurTargetView } from 'expo-blur';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Button, FlatList, Text, View, type View as RNView } from 'react-native';
+import {
+  ActivityIndicator,
+  Button,
+  FlatList,
+  Image,
+  Pressable,
+  Text,
+  View,
+  type View as RNView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { CreateMomentOverlay } from '@/components/create-moment-overlay';
 import { JoinMomentOverlay } from '@/components/join-moment-overlay';
 import { MomentCard } from '@/components/moment-card';
+import { SearchBar } from '@/components/search-bar';
 import { useAuth } from '@/hooks/use-auth';
+import { useSemanticSearch } from '@/hooks/use-semantic-search';
+import { getPhotoDisplayUri } from '@/lib/photo-cache';
 import {
   CachedMemberRow,
   fetchWithCache,
@@ -39,6 +51,16 @@ export function MomentsListScreen() {
   const blurTargetRef = useRef<RNView>(null);
   const [showCreateOverlay, setShowCreateOverlay] = useState(false);
   const [showJoinOverlay, setShowJoinOverlay] = useState(false);
+  const {
+    query,
+    onQueryChange,
+    results: searchResults,
+    isSearching,
+    modelsReady,
+    downloadProgress,
+    error: searchError,
+    emptyMessage: searchEmptyMessage,
+  } = useSemanticSearch();
 
   const { data, isLoading } = useQuery({
     queryKey: ['moments', user?.id],
@@ -119,22 +141,76 @@ export function MomentsListScreen() {
             <Button title="Join" onPress={() => setShowJoinOverlay(true)} />
             <Button title="+" onPress={() => setShowCreateOverlay(true)} />
           </View>
-          <FlatList
-            data={data}
-            keyExtractor={(item) => item.moment_id}
-            renderItem={({ item }) => {
-              const moment = getMoment(item);
-              return (
-                <MomentCard
-                  id={item.moment_id}
-                  name={moment?.name ?? '—'}
-                  createdAt={moment?.created_at ?? ''}
-                  memberCount={1}
-                  onPress={() => router.push(`/moment/${item.moment_id}` as any)}
-                />
-              );
-            }}
+
+          <SearchBar
+            query={query}
+            onQueryChange={onQueryChange}
+            isSearching={isSearching}
+            modelsReady={modelsReady}
+            downloadProgress={downloadProgress}
+            error={searchError}
+            emptyMessage={searchEmptyMessage}
           />
+
+          {query.trim() && searchResults.length > 0 ? (
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.photoId}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/moment/[id]/photo/[photoId]' as any,
+                      params: {
+                        id: item.momentId,
+                        photoId: item.photoId,
+                        storagePath: item.storagePath,
+                        canDelete: '0',
+                      },
+                    })
+                  }
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingVertical: 10,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#222',
+                  }}
+                >
+                  <Image
+                    source={{ uri: getPhotoDisplayUri(item.photoId, item.storagePath) }}
+                    style={{ width: 56, height: 56, borderRadius: 8, backgroundColor: '#222' }}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#fff', fontSize: 14 }}>
+                      Match {Math.round(item.similarity * 100)}%
+                    </Text>
+                    <Text style={{ color: '#888', fontSize: 12 }} numberOfLines={1}>
+                      {item.storagePath}
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+            />
+          ) : (
+            <FlatList
+              data={data}
+              keyExtractor={(item) => item.moment_id}
+              renderItem={({ item }) => {
+                const moment = getMoment(item);
+                return (
+                  <MomentCard
+                    id={item.moment_id}
+                    name={moment?.name ?? '—'}
+                    createdAt={moment?.created_at ?? ''}
+                    memberCount={1}
+                    onPress={() => router.push(`/moment/${item.moment_id}` as any)}
+                  />
+                );
+              }}
+            />
+          )}
         </View>
       </BlurTargetView>
 

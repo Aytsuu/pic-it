@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 
 import { GridItem, PhotoGrid } from '@/components/photo-grid';
+import { SearchBar } from '@/components/search-bar';
 import { useAuth } from '@/hooks/use-auth';
 import { useMomentPhotoInserts } from '@/hooks/use-moment-photo-inserts';
 import { usePicks } from '@/hooks/use-picks';
+import { useSemanticSearch } from '@/hooks/use-semantic-search';
 import {
   CachedPhoto,
   fetchWithCache,
@@ -47,6 +49,16 @@ export function MomentRollScreen() {
   const localUrisRef = useRef<Record<string, string>>({});
 
   const { pickedIds, fetchPicks, savePicks, isSaving } = usePicks(momentId ?? '');
+  const {
+    query,
+    onQueryChange,
+    results: searchResults,
+    isSearching,
+    modelsReady,
+    downloadProgress,
+    error: searchError,
+    emptyMessage: searchEmptyMessage,
+  } = useSemanticSearch(momentId);
 
   const remoteQuery = useQuery({
     queryKey: ['photos', momentId],
@@ -187,6 +199,29 @@ export function MomentRollScreen() {
       .map(({ sortTime: _sortTime, ...item }) => item);
   }, [remoteQuery.data, momentId, user, localRefreshKey, pickedIds, selectedIds, isSelecting, router]);
 
+  const displayItems = useMemo(() => {
+    if (!query.trim()) return items;
+    if (searchResults.length === 0) return [];
+
+    return searchResults.map((result) => ({
+      key: result.photoId,
+      source: getPhotoDisplayUri(result.photoId, result.storagePath),
+      syncStatus: 'synced' as SyncStatus,
+      onDetailPress: !isSelecting
+        ? () =>
+            router.push({
+              pathname: '/moment/[id]/photo/[photoId]' as any,
+              params: {
+                id: momentId!,
+                photoId: result.photoId,
+                storagePath: result.storagePath,
+                canDelete: '0',
+              },
+            })
+        : undefined,
+    }));
+  }, [items, query, searchResults, isSelecting, momentId, router]);
+
   async function handlePicIt() {
     try {
       await savePicks([...selectedIds], storagePathsRef.current, localUrisRef.current);
@@ -229,7 +264,17 @@ export function MomentRollScreen() {
         </Pressable>
       </View>
 
-      <PhotoGrid items={items} />
+      <SearchBar
+        query={query}
+        onQueryChange={onQueryChange}
+        isSearching={isSearching}
+        modelsReady={modelsReady}
+        downloadProgress={downloadProgress}
+        error={searchError}
+        emptyMessage={searchEmptyMessage}
+      />
+
+      <PhotoGrid items={displayItems} />
 
       {!isSelecting && (
         <TouchableOpacity

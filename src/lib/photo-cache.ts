@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { deleteEmbedding } from '@/lib/embedding-store';
 import { deleteCachedPhotoFile, deleteLocalFile, downloadPhotoToCache, fileExists } from '@/lib/photo-files';
 import { removeCachedPhoto } from '@/lib/offline-cache';
 import { Image } from 'expo-image';
@@ -36,6 +37,7 @@ export async function purgePhotoFromDevice(momentId: string, photoIds: string[])
     await deleteCachedPhotoFile(momentId, photoId);
     removePhotoFile(photoId);
     removeCachedPhoto(momentId, photoId);
+    deleteEmbedding(photoId);
   }
 
   await Image.clearMemoryCache();

@@ -52,4 +52,12 @@ db.execSync(`
     created_at  integer not null,
     primary key (user_id, photo_id)
   );
+
+  create table if not exists photo_embeddings (
+    photo_id   text primary key,
+    embedding  blob not null,
+    dim        integer not null default 512,
+    synced     integer not null default 0,
+    created_at integer not null
+  );
 `);

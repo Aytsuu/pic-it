@@ -1,3 +1,6 @@
+import { embedImage } from '@/lib/embedder';
+import { saveEmbedding } from '@/lib/embedding-store';
+import { syncEmbeddings } from '@/lib/embedding-sync';
 import * as queue from '@/lib/queue';
 import { isOnline } from '@/lib/network';
 import {
@@ -16,10 +19,12 @@ export async function scheduleSync(userId: string, momentId?: string): Promise<v
 
   if (momentId) {
     await syncMoment(momentId, userId);
+    await syncEmbeddings();
     return;
   }
 
   await syncAllPending(userId);
+  await syncEmbeddings();
 }
 
 export async function syncMoment(momentId: string, userId: string): Promise<void> {
@@ -62,6 +67,12 @@ async function syncMomentInternal(momentId: string, userId: string): Promise<voi
       queue.markSynced(photo.local_id, data.id);
       registerPhotoFile(data.id, momentId, photo.local_uri);
       remapPickPhotoId(userId, photo.local_id, data.id);
+
+      void embedImage(photo.local_uri)
+        .then((vec) => saveEmbedding(data.id, vec))
+        .catch((err) => {
+          if (__DEV__) console.warn('[sync] embedding failed for', data.id, err);
+        });
     } catch {
       queue.markFailed(photo.local_id);
     }
