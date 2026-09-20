@@ -1,6 +1,7 @@
+import { makeRedirectUri } from 'expo-auth-session';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
-import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 
 import type { Session } from '@supabase/supabase-js';
 import { AuthError } from '@supabase/supabase-js';
@@ -9,6 +10,23 @@ import { isOnline } from '@/lib/network';
 import { supabase } from '@/lib/supabase';
 
 export const AUTH_REDIRECT_PATH = 'google-auth';
+
+/** Deep link that Expo Go / the dev build actually opens. */
+export function getNativeAppRedirectUri(): string {
+  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+    if (Platform.OS === 'android') {
+      return makeRedirectUri({ path: AUTH_REDIRECT_PATH });
+    }
+
+    const slug = Constants.expoConfig?.slug ?? 'pic-it';
+    return `exp+${slug}://${AUTH_REDIRECT_PATH}`;
+  }
+
+  return makeRedirectUri({
+    scheme: 'picit',
+    path: AUTH_REDIRECT_PATH,
+  });
+}
 
 function isInvalidSessionError(error: AuthError): boolean {
   if (error.status === 401 || error.status === 403) return true;
@@ -57,18 +75,24 @@ export async function validateStoredSession(): Promise<Session | null> {
 }
 
 /**
- * Expo Go must use exp+<slug>:// (e.g. exp+pic-it://google-auth).
- * The exp://<host>:8081/--/path form is for in-app routing, not OAuth callbacks —
- * Safari cannot open it after Google sign-in.
- * Dev/production builds use picit:// from app.json.
+ * URL sent to Supabase as `redirectTo`.
+ * Android Expo Go cannot follow Google/ngrok HTTPS → exp://192.168.x.x (Chrome blocks it),
+ * so we bounce through an HTTPS edge function first.
  */
 export function getAuthRedirectUri(): string {
-  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
-    const slug = Constants.expoConfig?.slug ?? 'pic-it';
-    return `exp+${slug}://${AUTH_REDIRECT_PATH}`;
+  const appUri = getNativeAppRedirectUri();
+
+  if (
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient &&
+    Platform.OS === 'android'
+  ) {
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    if (supabaseUrl) {
+      return `${supabaseUrl}/functions/v1/oauth-return?app=${encodeURIComponent(appUri)}`;
+    }
   }
 
-  return Linking.createURL(AUTH_REDIRECT_PATH, { scheme: 'picit' });
+  return appUri;
 }
 
 export async function createSessionFromUrl(url: string): Promise<void> {

@@ -1,14 +1,24 @@
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { Button, Text, View } from 'react-native';
+import { Button, Platform, Text, View } from 'react-native';
 
 import {
   AUTH_REDIRECT_PATH,
   createSessionFromUrl,
   getAuthRedirectUri,
+  getNativeAppRedirectUri,
 } from '@/lib/auth-session';
+import { getExpoAuthProxyRedirectUri, signInWithGoogleIdToken } from '@/lib/google-id-token-auth';
 import { supabase } from '@/lib/supabase';
+
+function getSupabaseHost(): string {
+  try {
+    return new URL(process.env.EXPO_PUBLIC_SUPABASE_URL ?? '').host;
+  } catch {
+    return 'unknown';
+  }
+}
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -24,6 +34,9 @@ export function SignInScreen() {
         setIsLoading(true);
         setError(null);
         await createSessionFromUrl(url);
+        if (WebBrowser.dismissBrowser) {
+          WebBrowser.dismissBrowser();
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Sign-in failed');
       } finally {
@@ -47,7 +60,13 @@ export function SignInScreen() {
     setIsLoading(true);
 
     try {
+      if (Platform.OS === 'android') {
+        await signInWithGoogleIdToken();
+        return;
+      }
+
       const redirectTo = getAuthRedirectUri();
+      const nativeRedirect = getNativeAppRedirectUri();
 
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -58,7 +77,7 @@ export function SignInScreen() {
         throw new Error(oauthError?.message ?? 'Could not start Google sign-in');
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      const result = await WebBrowser.openAuthSessionAsync(data.url, nativeRedirect);
 
       if (result.type === 'success' && result.url) {
         await createSessionFromUrl(result.url);
@@ -66,6 +85,11 @@ export function SignInScreen() {
       }
 
       if (result.type === 'cancel' || result.type === 'dismiss') {
+        // Android often returns dismiss while the /google-auth deep link route finishes OAuth.
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session) return;
         return;
       }
 
@@ -87,7 +111,14 @@ export function SignInScreen() {
       {error && <Text style={{ color: 'red', textAlign: 'center' }}>{error}</Text>}
       {__DEV__ && (
         <Text style={{ color: '#666', fontSize: 12, textAlign: 'center' }}>
-          Redirect: {getAuthRedirectUri()}
+          {Platform.OS === 'android'
+            ? `Add BOTH of these in Google Cloud Console → Web client:\nRedirect: ${getExpoAuthProxyRedirectUri()}\nJS origin: https://auth.expo.io`
+            : `Redirect: ${getAuthRedirectUri()}\nApp: ${getNativeAppRedirectUri()}`}
+          {'\n'}
+          Supabase: {getSupabaseHost()}
+          {getSupabaseHost().includes('127.0.0.1') || getSupabaseHost().includes('localhost')
+            ? '\n⚠ Use ngrok URL in EXPO_PUBLIC_SUPABASE_URL'
+            : ''}
         </Text>
       )}
     </View>
