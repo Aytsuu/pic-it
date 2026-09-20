@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { embedImage } from '@/lib/embedder';
 import { getEmbedding, saveEmbedding } from '@/lib/embedding-store';
+import { isOnnxRuntimeAvailable } from '@/lib/native-capabilities';
 import { logSearchError, logSearchStep } from '@/lib/search-errors';
 import { db } from '@/lib/db';
 
@@ -20,6 +21,8 @@ async function ensureEmbeddingIndexVersion(): Promise<void> {
 }
 
 export async function backfillEmbeddingsForMoment(momentId: string): Promise<void> {
+  if (!isOnnxRuntimeAvailable()) return;
+
   if (backfillInFlight) {
     await backfillInFlight;
     return;

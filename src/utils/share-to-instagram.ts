@@ -1,1 +1,5 @@
-export { canShareToInstagram, shareToInstagramStories } from './share-to-instagram.native';
+export {
+  canShareToInstagram,
+  isInstagramSharePreviewMode,
+  shareToInstagramStories,
+} from './share-to-instagram.native';

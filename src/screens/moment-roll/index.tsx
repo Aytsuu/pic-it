@@ -1,3 +1,4 @@
+import { BlurTargetView } from 'expo-blur';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -6,12 +7,14 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
+  type View as RNView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MomentBottomNav } from '@/components/moment-bottom-nav';
 import { GridItem, PhotoGrid } from '@/components/photo-grid';
-import { SearchBar } from '@/components/search-bar';
+import { SemanticSearchOverlay } from '@/components/semantic-search-overlay';
 import { useAuth } from '@/hooks/use-auth';
 import { useMomentPhotoInserts } from '@/hooks/use-moment-photo-inserts';
 import { usePicks } from '@/hooks/use-picks';
@@ -25,6 +28,7 @@ import {
 import { isOnline } from '@/lib/network';
 import { cacheRemotePhotos, getPhotoDisplayUri } from '@/lib/photo-cache';
 import { getAll, resetForRetry, SyncStatus, toDisplayStatus } from '@/lib/queue';
+import type { SearchResult } from '@/lib/semantic-search';
 import { supabase } from '@/lib/supabase';
 import { syncMoment } from '@/lib/sync';
 
@@ -37,14 +41,18 @@ type RemotePhoto = {
 
 type SortedGridItem = GridItem & { sortTime: number };
 
+const NAV_CLEARANCE = 96;
+
 export function MomentRollScreen() {
   const { id: momentId } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const blurTargetRef = useRef<RNView>(null);
   const [localRefreshKey, setLocalRefreshKey] = useState(0);
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showSearchOverlay, setShowSearchOverlay] = useState(false);
   const storagePathsRef = useRef<Record<string, string>>({});
   const localUrisRef = useRef<Record<string, string>>({});
 
@@ -58,6 +66,7 @@ export function MomentRollScreen() {
     downloadProgress,
     error: searchError,
     emptyMessage: searchEmptyMessage,
+    isPreviewMode: isSearchPreviewMode,
   } = useSemanticSearch(momentId);
 
   const remoteQuery = useQuery({
@@ -199,29 +208,6 @@ export function MomentRollScreen() {
       .map(({ sortTime: _sortTime, ...item }) => item);
   }, [remoteQuery.data, momentId, user, localRefreshKey, pickedIds, selectedIds, isSelecting, router]);
 
-  const displayItems = useMemo(() => {
-    if (!query.trim()) return items;
-    if (searchResults.length === 0) return [];
-
-    return searchResults.map((result) => ({
-      key: result.photoId,
-      source: getPhotoDisplayUri(result.photoId, result.storagePath),
-      syncStatus: 'synced' as SyncStatus,
-      onDetailPress: !isSelecting
-        ? () =>
-            router.push({
-              pathname: '/moment/[id]/photo/[photoId]' as any,
-              params: {
-                id: momentId!,
-                photoId: result.photoId,
-                storagePath: result.storagePath,
-                canDelete: '0',
-              },
-            })
-        : undefined,
-    }));
-  }, [items, query, searchResults, isSelecting, momentId, router]);
-
   async function handlePicIt() {
     try {
       await savePicks([...selectedIds], storagePathsRef.current, localUrisRef.current);
@@ -241,96 +227,119 @@ export function MomentRollScreen() {
     }
   }
 
-  return (
-    <View style={{ flex: 1 }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'flex-end',
-          padding: 8,
-          paddingTop: 48,
-        }}
-      >
-        <Pressable
-          onPress={() => {
-            setIsSelecting((prev) => !prev);
-            setSelectedIds(new Set());
-          }}
-          style={{ padding: 8 }}
-        >
-          <Text style={{ color: '#007AFF', fontSize: 16 }}>
-            {isSelecting ? 'Cancel' : 'Select'}
-          </Text>
-        </Pressable>
-      </View>
+  function handleSearchResultPress(result: SearchResult) {
+    setShowSearchOverlay(false);
+    router.push({
+      pathname: '/moment/[id]/photo/[photoId]' as any,
+      params: {
+        id: momentId!,
+        photoId: result.photoId,
+        storagePath: result.storagePath,
+        canDelete: '0',
+      },
+    });
+  }
 
-      <SearchBar
+  function handleToggleSelect() {
+    setIsSelecting((prev) => !prev);
+    setSelectedIds(new Set());
+  }
+
+  const showPickBar = isSelecting && selectedIds.size > 0;
+  const showBottomNav = !showPickBar;
+
+  return (
+    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
+      <BlurTargetView ref={blurTargetRef} style={styles.content} collapsable={false}>
+        <PhotoGrid
+          items={items}
+          contentPaddingBottom={NAV_CLEARANCE}
+          isSelecting={isSelecting}
+        />
+      </BlurTargetView>
+
+      {showBottomNav ? (
+        <MomentBottomNav
+          onCamera={() => router.push(`/moment/${momentId}/camera` as any)}
+          onSelect={handleToggleSelect}
+          onSearch={() => setShowSearchOverlay(true)}
+          isSelecting={isSelecting}
+        />
+      ) : null}
+
+      {showPickBar ? (
+        <View style={styles.pickBar}>
+          <Text style={styles.pickCount}>{selectedIds.size} selected</Text>
+          <Pressable
+            onPress={() => void handlePicIt()}
+            disabled={isSaving}
+            style={[styles.picItButton, isSaving && styles.picItButtonDisabled]}
+          >
+            <Text style={styles.picItButtonText}>{isSaving ? 'Saving…' : 'Pic it'}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      <SemanticSearchOverlay
+        visible={showSearchOverlay}
+        blurTargetRef={blurTargetRef}
+        onClose={() => {
+          setShowSearchOverlay(false);
+          onQueryChange('');
+        }}
         query={query}
         onQueryChange={onQueryChange}
+        results={searchResults}
         isSearching={isSearching}
         modelsReady={modelsReady}
         downloadProgress={downloadProgress}
         error={searchError}
         emptyMessage={searchEmptyMessage}
+        isPreviewMode={isSearchPreviewMode}
+        onResultPress={handleSearchResultPress}
       />
-
-      <PhotoGrid items={displayItems} />
-
-      {!isSelecting && (
-        <TouchableOpacity
-          onPress={() => router.push(`/moment/${momentId}/camera` as any)}
-          style={{
-            position: 'absolute',
-            bottom: 32,
-            right: 24,
-            width: 60,
-            height: 60,
-            borderRadius: 30,
-            backgroundColor: '#208AEF',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ color: '#fff', fontSize: 28 }}>📷</Text>
-        </TouchableOpacity>
-      )}
-
-      {isSelecting && selectedIds.size > 0 && (
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            backgroundColor: '#fff',
-            borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: '#ccc',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 24,
-            paddingVertical: 16,
-            paddingBottom: 32,
-          }}
-        >
-          <Text style={{ fontSize: 16, color: '#333' }}>{selectedIds.size} selected</Text>
-          <Pressable
-            onPress={() => void handlePicIt()}
-            disabled={isSaving}
-            style={{
-              backgroundColor: '#208AEF',
-              paddingHorizontal: 24,
-              paddingVertical: 10,
-              borderRadius: 20,
-              opacity: isSaving ? 0.6 : 1,
-            }}
-          >
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
-              {isSaving ? 'Saving…' : 'Pic it'}
-            </Text>
-          </Pressable>
-        </View>
-      )}
-    </View>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+  },
+  pickBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#ccc',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    paddingBottom: 32,
+  },
+  pickCount: {
+    fontSize: 16,
+    color: '#333',
+  },
+  picItButton: {
+    backgroundColor: '#208AEF',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  picItButtonDisabled: {
+    opacity: 0.6,
+  },
+  picItButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+});

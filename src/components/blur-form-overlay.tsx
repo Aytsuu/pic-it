@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 
-const BLUR_INTENSITY = 28;
+const BLUR_INTENSITY = 78;
 const TRANSITION_DURATION = 520;
 const OPEN_EASING = Easing.bezier(0.22, 1, 0.36, 1);
 const CLOSE_EASING = Easing.bezier(0.4, 0, 0.2, 1);
@@ -38,6 +38,7 @@ type Props = {
   actionDisabled?: boolean;
   isSubmitting?: boolean;
   error?: string | null;
+  hideHeaderActions?: boolean;
   children: ReactNode;
 };
 
@@ -51,6 +52,7 @@ export function BlurFormOverlay({
   actionDisabled = false,
   isSubmitting = false,
   error,
+  hideHeaderActions = false,
   children,
 }: Props) {
   const insets = useSafeAreaInsets();
@@ -108,7 +110,7 @@ export function BlurFormOverlay({
         animatedProps={blurAnimatedProps}
         style={StyleSheet.absoluteFill}
         intensity={0}
-        tint="systemThinMaterial"
+        tint="systemThinMaterialLight"
         blurReductionFactor={1}
         blurMethod={Platform.OS === 'android' ? 'dimezisBlurViewSdk31Plus' : undefined}
       >
@@ -116,31 +118,35 @@ export function BlurFormOverlay({
           <Pressable style={styles.dismissArea} onPress={onClose}>
             <View style={[styles.content, { paddingTop: insets.top + 12 }]}>
               <Pressable onPress={(event) => event.stopPropagation()}>
-                <View style={styles.header}>
-                  <View style={styles.headerSide}>
-                    <Pressable onPress={onClose} disabled={isSubmitting} hitSlop={8}>
-                      <Text style={styles.cancelText}>Cancel</Text>
-                    </Pressable>
+                {hideHeaderActions ? (
+                  <Text style={styles.headerTitleStandalone}>{title}</Text>
+                ) : (
+                  <View style={styles.header}>
+                    <View style={styles.headerSide}>
+                      <Pressable onPress={onClose} disabled={isSubmitting} hitSlop={8}>
+                        <Text style={styles.cancelText}>Cancel</Text>
+                      </Pressable>
+                    </View>
+                    <Text style={styles.headerTitle}>{title}</Text>
+                    <View style={[styles.headerSide, styles.headerSideEnd]}>
+                      <Pressable
+                        onPress={onAction}
+                        disabled={isSubmitting || actionDisabled}
+                        hitSlop={8}
+                      >
+                        {isSubmitting ? (
+                          <ActivityIndicator size="small" />
+                        ) : (
+                          <Text
+                            style={[styles.actionText, actionDisabled && styles.actionTextDisabled]}
+                          >
+                            {actionLabel}
+                          </Text>
+                        )}
+                      </Pressable>
+                    </View>
                   </View>
-                  <Text style={styles.headerTitle}>{title}</Text>
-                  <View style={[styles.headerSide, styles.headerSideEnd]}>
-                    <Pressable
-                      onPress={onAction}
-                      disabled={isSubmitting || actionDisabled}
-                      hitSlop={8}
-                    >
-                      {isSubmitting ? (
-                        <ActivityIndicator size="small" />
-                      ) : (
-                        <Text
-                          style={[styles.actionText, actionDisabled && styles.actionTextDisabled]}
-                        >
-                          {actionLabel}
-                        </Text>
-                      )}
-                    </Pressable>
-                  </View>
-                </View>
+                )}
 
                 {children}
                 {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -207,6 +213,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111',
     textAlign: 'center',
+  },
+  headerTitleStandalone: {
+    fontSize: 32,
+    fontWeight: '600',
+    color: '#111',
+    marginBottom: 20,
   },
   error: {
     color: '#ff3b30',

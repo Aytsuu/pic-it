@@ -10,6 +10,7 @@ type Props = {
   downloadProgress: DownloadProgress | null;
   error?: string | null;
   emptyMessage?: string | null;
+  isPreviewMode?: boolean;
 };
 
 export function SearchBar({
@@ -20,6 +21,7 @@ export function SearchBar({
   downloadProgress,
   error,
   emptyMessage,
+  isPreviewMode = false,
 }: Props) {
   if (!modelsReady) {
     const pct = downloadProgress
@@ -48,6 +50,11 @@ export function SearchBar({
         />
         {isSearching && <ActivityIndicator size="small" style={styles.spinner} />}
       </View>
+      {isPreviewMode ? (
+        <Text style={styles.previewBanner}>
+          Expo Go preview — search runs in a development build
+        </Text>
+      ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {!error && emptyMessage ? <Text style={styles.hint}>{emptyMessage}</Text> : null}
     </View>
@@ -94,6 +101,12 @@ const styles = StyleSheet.create({
   },
   hint: {
     color: '#888',
+    fontSize: 12,
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  previewBanner: {
+    color: '#6eb5ff',
     fontSize: 12,
     marginTop: 6,
     marginLeft: 4,

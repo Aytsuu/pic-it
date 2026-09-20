@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 
+import { isOnnxRuntimeAvailable } from '@/lib/native-capabilities';
+
 const BASE_URL =
   'https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/main/onnx/';
 const MODEL_DIR = `${FileSystem.documentDirectory}models/`;
@@ -57,6 +59,8 @@ async function downloadModel(name: ModelName, onProgress?: ProgressCallback): Pr
 }
 
 export async function ensureModelsReady(onProgress?: ProgressCallback): Promise<void> {
+  if (!isOnnxRuntimeAvailable()) return;
+
   await ensureDir();
   await downloadModel('vision', onProgress);
   await downloadModel('text', onProgress);
@@ -81,6 +85,8 @@ export async function assertModelReady(name: ModelName): Promise<void> {
 }
 
 export async function areModelsReady(): Promise<boolean> {
+  if (!isOnnxRuntimeAvailable()) return true;
+
   const flag = await AsyncStorage.getItem(MODELS_READY_KEY);
   if (!flag) return false;
 

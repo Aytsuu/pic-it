@@ -2,10 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { backfillEmbeddingsForMoment } from '@/lib/embedding-backfill';
 import { areModelsReady, DownloadProgress, ensureModelsReady } from '@/lib/model-manager';
+import { isSemanticSearchPreviewMode } from '@/lib/native-capabilities';
 import { formatSearchError, logSearchError } from '@/lib/search-errors';
 import { SearchResult, searchPhotos } from '@/lib/semantic-search';
 
+const PREVIEW_HINT =
+  'Search UI preview only in Expo Go. Use a development build to run semantic search.';
+
 export function useSemanticSearch(momentId?: string) {
+  const isPreviewMode = isSemanticSearchPreviewMode();
   const [modelsReady, setModelsReady] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
   const [query, setQuery] = useState('');
@@ -46,6 +51,12 @@ export function useSemanticSearch(momentId?: string) {
 
       if (!modelsReady) return;
 
+      if (isPreviewMode) {
+        setResults([]);
+        setError(null);
+        return;
+      }
+
       debounceRef.current = setTimeout(() => {
         void (async () => {
           setIsSearching(true);
@@ -63,11 +74,14 @@ export function useSemanticSearch(momentId?: string) {
         })();
       }, 300);
     },
-    [momentId, modelsReady]
+    [isPreviewMode, momentId, modelsReady]
   );
 
-  const emptyMessage =
-    query.trim() && !isSearching && !error && results.length === 0
+  const emptyMessage = isPreviewMode
+    ? query.trim()
+      ? PREVIEW_HINT
+      : null
+    : query.trim() && !isSearching && !error && results.length === 0
       ? 'No matching photos yet. New photos are indexed after upload.'
       : null;
 
@@ -80,5 +94,6 @@ export function useSemanticSearch(momentId?: string) {
     downloadProgress,
     error,
     emptyMessage,
+    isPreviewMode,
   };
 }

@@ -1,4 +1,3 @@
-import { NativeModules } from 'react-native';
 import { InferenceSession, Tensor } from 'onnxruntime-react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 // @ts-expect-error upng-js has no bundled types
@@ -16,16 +15,8 @@ const EMBEDDING_DIM = 512;
 let visionSession: InferenceSession | null = null;
 let textSession: InferenceSession | null = null;
 
-function assertOnnxRuntimeAvailable(): void {
-  if (NativeModules.Onnxruntime) return;
-  throw new Error(
-    'ONNX Runtime is not available. Reinstall the development build (Expo Go does not support semantic search).'
-  );
-}
-
 async function getVisionSession(): Promise<InferenceSession> {
   if (!visionSession) {
-    assertOnnxRuntimeAvailable();
     await assertModelReady('vision');
     const path = getModelPath('vision');
     try {
@@ -44,7 +35,6 @@ async function getVisionSession(): Promise<InferenceSession> {
 
 async function getTextSession(): Promise<InferenceSession> {
   if (!textSession) {
-    assertOnnxRuntimeAvailable();
     await assertModelReady('text');
     const path = getModelPath('text');
     try {

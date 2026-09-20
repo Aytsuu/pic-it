@@ -60,4 +60,12 @@ db.execSync(`
     synced     integer not null default 0,
     created_at integer not null
   );
+
+  create table if not exists moment_cover_photos (
+    user_id     text not null,
+    moment_id   text not null,
+    photo_id    text not null,
+    updated_at  integer not null,
+    primary key (user_id, moment_id)
+  );
 `);
