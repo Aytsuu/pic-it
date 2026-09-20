@@ -17,7 +17,7 @@ async function removeMomentPhotoChannels(momentId: string): Promise<void> {
 
 export function useMomentPhotoInserts(
   momentId: string | undefined,
-  onInsert: () => void
+  onChange: () => void
 ): void {
   useFocusEffect(
     useCallback(() => {
@@ -41,7 +41,17 @@ export function useMomentPhotoInserts(
               table: 'photos',
               filter: `moment_id=eq.${momentId}`,
             },
-            onInsert
+            onChange
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'DELETE',
+              schema: 'public',
+              table: 'photos',
+              filter: `moment_id=eq.${momentId}`,
+            },
+            onChange
           )
           .subscribe();
 
@@ -60,6 +70,6 @@ export function useMomentPhotoInserts(
         }
         void removeMomentPhotoChannels(momentId);
       };
-    }, [momentId, onInsert])
+    }, [momentId, onChange])
   );
 }

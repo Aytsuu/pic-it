@@ -23,3 +23,18 @@ export async function downloadPhotoToCache(
   const result = await FileSystem.downloadAsync(url, dest);
   return result.uri;
 }
+
+export async function deleteLocalFile(localUri: string): Promise<void> {
+  const info = await FileSystem.getInfoAsync(localUri);
+  if (!info.exists) return;
+  await FileSystem.deleteAsync(localUri, { idempotent: true });
+}
+
+export function getCachedPhotoPath(momentId: string, photoId: string): string {
+  const baseDir = FileSystem.cacheDirectory ?? '';
+  return `${baseDir}photos/${momentId}/${photoId}.jpg`;
+}
+
+export async function deleteCachedPhotoFile(momentId: string, photoId: string): Promise<void> {
+  await deleteLocalFile(getCachedPhotoPath(momentId, photoId));
+}

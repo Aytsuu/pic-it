@@ -1,5 +1,8 @@
 import { db } from '@/lib/db';
-import { downloadPhotoToCache, fileExists } from '@/lib/photo-files';
+import { deleteEmbedding } from '@/lib/embedding-store';
+import { deleteCachedPhotoFile, deleteLocalFile, downloadPhotoToCache, fileExists } from '@/lib/photo-files';
+import { removeCachedPhoto } from '@/lib/offline-cache';
+import { Image } from 'expo-image';
 import { isOnline } from '@/lib/network';
 import { getByLocalId } from '@/lib/queue';
 
@@ -16,6 +19,29 @@ export function registerPhotoFile(photoId: string, momentId: string, localUri: s
      values (?, ?, ?, ?)`,
     [photoId, momentId, localUri, Date.now()]
   );
+}
+
+export function removePhotoFile(photoId: string): void {
+  db.runSync(`delete from photo_files where photo_id = ?`, [photoId]);
+}
+
+export async function purgePhotoFromDevice(momentId: string, photoIds: string[]): Promise<void> {
+  const uniqueIds = [...new Set(photoIds.filter(Boolean))];
+
+  for (const photoId of uniqueIds) {
+    const registeredUri = getPhotoLocalUri(photoId);
+    if (registeredUri) {
+      await deleteLocalFile(registeredUri);
+    }
+
+    await deleteCachedPhotoFile(momentId, photoId);
+    removePhotoFile(photoId);
+    removeCachedPhoto(momentId, photoId);
+    deleteEmbedding(photoId);
+  }
+
+  await Image.clearMemoryCache();
+  await Image.clearDiskCache();
 }
 
 export function getPhotoLocalUri(photoId: string): string | null {

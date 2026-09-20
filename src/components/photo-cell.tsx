@@ -6,6 +6,7 @@ type Props = {
   source: string;
   syncStatus: SyncStatus;
   isPicked?: boolean;
+  isSelecting?: boolean;
   isSelected?: boolean;
   onPress?: () => void;
   onDetailPress?: () => void;
@@ -16,6 +17,7 @@ export function PhotoCell({
   source,
   syncStatus,
   isPicked = false,
+  isSelecting = false,
   isSelected = false,
   onPress,
   onDetailPress,
@@ -44,21 +46,25 @@ export function PhotoCell({
     <Pressable onPress={handlePress} style={styles.cell}>
       <Image source={{ uri: source }} style={styles.image} />
 
-      {isSelected && <View style={styles.selectedOverlay} />}
+      {isSelecting && isSelected && <View style={styles.selectedOverlay} />}
 
-      {isSelected && (
-        <View style={styles.checkBadge}>
-          <Text style={styles.checkText}>✓</Text>
-        </View>
+      {isSelecting && (
+        isSelected ? (
+          <View style={styles.checkBadge}>
+            <Text style={styles.checkText}>✓</Text>
+          </View>
+        ) : (
+          <View style={styles.selectCircle} />
+        )
       )}
 
-      {!isSelected && isPicked && (
+      {!isSelecting && isPicked && (
         <View style={styles.pickedBadge}>
           <Text style={styles.badgeText}>🔖</Text>
         </View>
       )}
 
-      {syncBadge && !isSelected && (
+      {syncBadge && !isSelecting && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{syncBadge}</Text>
         </View>
@@ -74,18 +80,31 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,122,255,0.3)',
   },
+  selectCircle: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    backgroundColor: 'rgba(0, 0, 0, 0.28)',
+  },
   checkBadge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#007AFF',
+    borderWidth: 2,
+    borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  checkText: { color: '#fff', fontSize: 13, fontWeight: '700', lineHeight: 15 },
   pickedBadge: {
     position: 'absolute',
     bottom: 4,

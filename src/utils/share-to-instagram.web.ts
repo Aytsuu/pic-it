@@ -1,3 +1,7 @@
+export function isInstagramSharePreviewMode(): boolean {
+  return false;
+}
+
 export async function canShareToInstagram(): Promise<boolean> {
   return false;
 }

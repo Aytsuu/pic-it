@@ -3,8 +3,7 @@ import { Button, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/hooks/use-auth';
-import { saveMoments } from '@/lib/offline-cache';
-import { supabase } from '@/lib/supabase';
+import { joinMoment } from '@/lib/join-moment';
 
 export function JoinMomentScreen() {
   const [code, setCode] = useState('');
@@ -13,38 +12,16 @@ export function JoinMomentScreen() {
   const router = useRouter();
 
   async function handleJoin() {
-    if (!code.trim() || !user) return;
+    if (!user) return;
     setError(null);
 
-    const { data: moment, error: lookupErr } = await supabase
-      .from('moments')
-      .select('id, name, created_at')
-      .eq('code', code.toUpperCase())
-      .single();
-
-    if (lookupErr || !moment) {
-      setError('Moment not found');
+    const result = await joinMoment(user.id, code);
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
 
-    const { error: memberErr } = await supabase
-      .from('members')
-      .upsert({ moment_id: moment.id, user_id: user.id });
-
-    if (memberErr) {
-      setError(memberErr.message);
-      return;
-    }
-
-    saveMoments(user.id, [
-      {
-        id: moment.id,
-        name: moment.name,
-        created_at: moment.created_at,
-      },
-    ]);
-
-    router.replace(`/moment/${moment.id}` as any);
+    router.replace(`/moment/${result.momentId}` as any);
   }
 
   return (

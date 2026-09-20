@@ -11,6 +11,7 @@ export type CachedPhoto = {
   id: string;
   storage_path: string;
   created_at: string;
+  uploaded_by?: string;
 };
 
 export type CachedMemberRow = {
@@ -75,6 +76,10 @@ export function getCachedPhotos(momentId: string): CachedPhoto[] {
      order by created_at desc`,
     [momentId]
   );
+}
+
+export function removeCachedPhoto(momentId: string, photoId: string): void {
+  db.runSync(`delete from cached_photos where moment_id = ? and id = ?`, [momentId, photoId]);
 }
 
 export async function fetchWithCache<T>({

@@ -15,19 +15,25 @@ export type GridItem = {
   onFailedPress?: () => void;
 };
 
-type Props = { items: GridItem[] };
+type Props = {
+  items: GridItem[];
+  contentPaddingBottom?: number;
+  isSelecting?: boolean;
+};
 
-export function PhotoGrid({ items }: Props) {
+export function PhotoGrid({ items, contentPaddingBottom = 0, isSelecting = false }: Props) {
   return (
     <FlashList
       data={items}
       numColumns={3}
       keyExtractor={(item) => item.key}
+      contentContainerStyle={{ paddingBottom: contentPaddingBottom }}
       renderItem={({ item }) => (
         <PhotoCell
           source={item.source}
           syncStatus={item.syncStatus}
           isPicked={item.isPicked}
+          isSelecting={isSelecting}
           isSelected={item.isSelected}
           onPress={item.onPress}
           onDetailPress={item.onDetailPress}

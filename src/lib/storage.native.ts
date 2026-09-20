@@ -23,3 +23,15 @@ export async function uploadPhoto(momentId: string, localUri: string): Promise<s
 
   return storagePath;
 }
+
+export async function deletePhotoFromStorage(storagePath: string): Promise<void> {
+  const normalizedPath = storagePath.replace(/^\/+/, '');
+  const { data, error } = await supabase.storage.from('moment-photos').remove([normalizedPath]);
+
+  if (error) throw error;
+
+  const deleted = data?.some((file) => file.name === normalizedPath) ?? false;
+  if (!deleted) {
+    throw new Error('Photo file could not be removed from storage');
+  }
+}

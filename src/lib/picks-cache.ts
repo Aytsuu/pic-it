@@ -60,6 +60,11 @@ export function clearPendingPicks(userId: string, photoIds: string[]): void {
   }
 }
 
+export function removePicksForPhoto(photoId: string): void {
+  db.runSync(`delete from cached_picks where photo_id = ?`, [photoId]);
+  db.runSync(`delete from pending_picks where photo_id = ?`, [photoId]);
+}
+
 export function remapPickPhotoId(userId: string, localId: string, remoteId: string): void {
   const cached = db.getFirstSync<{ moment_id: string; cached_at: number }>(
     `select moment_id, cached_at from cached_picks where user_id = ? and photo_id = ?`,

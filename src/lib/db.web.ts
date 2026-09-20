@@ -45,12 +45,20 @@ type PendingPickRow = {
   created_at: number;
 };
 
+type MomentCoverPhotoRow = {
+  user_id: string;
+  moment_id: string;
+  photo_id: string;
+  updated_at: number;
+};
+
 const rows: UnsyncedPhotoRow[] = [];
 const cachedMoments: CachedMomentRow[] = [];
 const cachedPhotos: CachedPhotoRow[] = [];
 const photoFiles: PhotoFileRow[] = [];
 const cachedPicks: CachedPickRow[] = [];
 const pendingPicks: PendingPickRow[] = [];
+const momentCoverPhotos: MomentCoverPhotoRow[] = [];
 
 function matchWhere(sql: string, params: unknown[]): UnsyncedPhotoRow[] {
   if (sql.includes('sync_status = \'pending\'')) {
@@ -80,6 +88,14 @@ function getDistinctPendingMomentIds(): { moment_id: string }[] {
 export const db = {
   execSync: () => {},
   getFirstSync: <T>(sql: string, params: unknown[] = []): T | null => {
+    if (sql.includes('from moment_cover_photos')) {
+      const [user_id, moment_id] = params as [string, string];
+      const row = momentCoverPhotos.find(
+        (item) => item.user_id === user_id && item.moment_id === moment_id
+      );
+      return row ? ({ photo_id: row.photo_id } as T) : null;
+    }
+
     if (sql.includes('from photo_files')) {
       const [photo_id] = params as [string];
       const row = photoFiles.find((item) => item.photo_id === photo_id);
@@ -210,6 +226,22 @@ export const db = {
       const next = { user_id, photo_id, moment_id, cached_at };
       if (index >= 0) cachedPicks[index] = next;
       else cachedPicks.push(next);
+      return;
+    }
+
+    if (sql.includes('insert or replace into moment_cover_photos')) {
+      const [user_id, moment_id, photo_id, updated_at] = params as [
+        string,
+        string,
+        string,
+        number,
+      ];
+      const index = momentCoverPhotos.findIndex(
+        (row) => row.user_id === user_id && row.moment_id === moment_id
+      );
+      const next = { user_id, moment_id, photo_id, updated_at };
+      if (index >= 0) momentCoverPhotos[index] = next;
+      else momentCoverPhotos.push(next);
       return;
     }
 

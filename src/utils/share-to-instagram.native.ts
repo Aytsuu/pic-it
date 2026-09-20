@@ -1,11 +1,16 @@
-import { Linking, Platform, TurboModuleRegistry } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import type { ShareSingleOptions } from 'react-native-share';
+
+import {
+  isInstagramSharePreviewMode as isPreviewMode,
+  isRnShareAvailable,
+} from '@/lib/native-capabilities';
 
 const EXPO_GO_SHARE_MESSAGE =
   'Sharing requires a development build. Expo Go does not include the native share module.';
 
-function isRnShareAvailable(): boolean {
-  return TurboModuleRegistry.get('RNShare') != null;
+export function isInstagramSharePreviewMode(): boolean {
+  return isPreviewMode();
 }
 
 export async function canShareToInstagram(): Promise<boolean> {
