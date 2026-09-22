@@ -9,7 +9,7 @@ type Props = {
   visible: boolean;
   blurTargetRef: RefObject<RNView | null>;
   onClose: () => void;
-  onJoined: (momentId: string) => void;
+  onJoined: (momentId: string, name: string) => void;
 };
 
 export function JoinMomentOverlay({ visible, blurTargetRef, onClose, onJoined }: Props) {
@@ -40,7 +40,7 @@ export function JoinMomentOverlay({ visible, blurTargetRef, onClose, onJoined }:
       return;
     }
 
-    onJoined(result.momentId);
+    onJoined(result.momentId, result.name);
   }
 
   return (

@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,8 +13,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { VideoPlayerView } from '@/components/video-player-view';
 import { useAuth } from '@/hooks/use-auth';
 import { saveImageToGallery } from '@/lib/gallery';
+import { isVideoUri } from '@/lib/media-uri';
 import { deletePhoto } from '@/lib/photo-delete';
 import { cacheRemotePhoto, resolvePhotoUri } from '@/lib/photo-cache';
 import {
@@ -76,8 +78,9 @@ export function PhotoDetailScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const isVideo = useMemo(() => (imageUri ? isVideoUri(imageUri) : false), [imageUri]);
   const showDelete = canDelete === '1';
-  const showShare = (canShare || isSharePreview) && !!imageUri;
+  const showShare = (canShare || isSharePreview) && !!imageUri && !isVideo;
 
   useEffect(() => {
     if (!momentId || !photoId) return;
@@ -143,7 +146,7 @@ export function PhotoDetailScreen() {
       }
 
       await saveImageToGallery(localUri);
-      Alert.alert('Saved', 'Photo saved to your camera roll.');
+      Alert.alert('Saved', isVideo ? 'Video saved to your camera roll.' : 'Photo saved to your camera roll.');
     } catch (err) {
       Alert.alert(
         'Could not save',
@@ -152,47 +155,45 @@ export function PhotoDetailScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [imageUri, isSaving, momentId, photoId, storagePath]);
+  }, [imageUri, isSaving, isVideo, momentId, photoId, storagePath]);
 
   const handleDelete = useCallback(() => {
     if (!user || !momentId || !photoId || isDeleting) return;
 
-    Alert.alert('Delete photo?', 'This removes the photo from the moment for everyone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            setIsDeleting(true);
-            const result = await deletePhoto(user.id, momentId, photoId, storagePath);
-            setIsDeleting(false);
+    Alert.alert(
+      isVideo ? 'Delete video?' : 'Delete photo?',
+      isVideo
+        ? 'This removes the video from the moment for everyone.'
+        : 'This removes the photo from the moment for everyone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setIsDeleting(true);
+              const result = await deletePhoto(user.id, momentId, photoId, storagePath);
+              setIsDeleting(false);
 
-            if (!result.ok) {
-              Alert.alert('Could not delete', result.error);
-              return;
-            }
+              if (!result.ok) {
+                Alert.alert('Could not delete', result.error);
+                return;
+              }
 
-            void queryClient.invalidateQueries({ queryKey: ['photos', momentId] });
-            router.back();
-          })();
+              void queryClient.invalidateQueries({ queryKey: ['photos', momentId] });
+              router.back();
+            })();
+          },
         },
-      },
-    ]);
-  }, [user, momentId, photoId, storagePath, isDeleting, queryClient, router]);
+      ]
+    );
+  }, [user, momentId, photoId, storagePath, isDeleting, isVideo, queryClient, router]);
 
   const showActionBar = !!imageUri;
 
   return (
     <View style={styles.container}>
-      {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.image} contentFit="contain" />
-      ) : loadError ? (
-        <Text style={styles.errorText}>{loadError}</Text>
-      ) : (
-        <ActivityIndicator size="large" color="#fff" />
-      )}
-
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} style={styles.closeButton} hitSlop={8}>
           <SymbolView
@@ -202,6 +203,20 @@ export function PhotoDetailScreen() {
             weight="semibold"
           />
         </Pressable>
+      </View>
+
+      <View style={styles.mediaContainer}>
+        {imageUri ? (
+          isVideo ? (
+            <VideoPlayerView uri={imageUri} />
+          ) : (
+            <Image source={{ uri: imageUri }} style={styles.image} contentFit="contain" />
+          )
+        ) : loadError ? (
+          <Text style={styles.errorText}>{loadError}</Text>
+        ) : (
+          <ActivityIndicator size="large" color="#fff" />
+        )}
       </View>
 
       {showActionBar ? (
@@ -246,6 +261,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  mediaContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -254,11 +272,9 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
     paddingHorizontal: 16,
+    paddingBottom: 8,
+    zIndex: 2,
   },
   closeButton: {
     width: 36,
@@ -269,13 +285,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
   actionBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     paddingTop: 18,
     paddingHorizontal: 20,
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    zIndex: 2,
   },
   actionRow: {
     flexDirection: 'row',

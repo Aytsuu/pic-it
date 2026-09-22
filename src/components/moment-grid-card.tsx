@@ -22,8 +22,7 @@ export function MomentGridCard({
   onPress,
   onLongPress,
 }: Props) {
-  const imageUri =
-    photoId && storagePath ? getPhotoDisplayUri(photoId, storagePath) : null;
+  const imageUri = photoId ? getPhotoDisplayUri(photoId, storagePath ?? '') : null;
 
   return (
     <Pressable

@@ -1,7 +1,10 @@
 import { BlurTargetView } from 'expo-blur';
-import { useRef, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -21,16 +24,26 @@ import { MomentGridCard } from '@/components/moment-grid-card';
 import { SemanticSearchOverlay } from '@/components/semantic-search-overlay';
 import { SettingsOverlay } from '@/components/settings-overlay';
 import { useAuth } from '@/hooks/use-auth';
+import { useMomentsPhotoChanges } from '@/hooks/use-moment-photo-inserts';
 import { useSemanticSearch } from '@/hooks/use-semantic-search';
-import { fetchMomentCovers, setMomentCoverPhoto, type ResolvedMomentCover } from '@/lib/moment-cover';
-import type { SearchResult } from '@/lib/semantic-search';
+import {
+  fetchMomentCovers,
+  mergeCoverPhotosWithLocal,
+  prefetchCoverStills,
+  setMomentCoverPhoto,
+  type ResolvedMomentCover,
+} from '@/lib/moment-cover';
 import {
   CachedMemberRow,
   fetchWithCache,
   getCachedMoments,
   saveMoments,
 } from '@/lib/offline-cache';
+import { registerPhotoFile } from '@/lib/photo-cache';
+import * as queue from '@/lib/queue';
+import type { SearchResult } from '@/lib/semantic-search';
 import { supabase } from '@/lib/supabase';
+import { scheduleSync } from '@/lib/sync';
 
 type MomentSummary = {
   id: string;
@@ -71,6 +84,7 @@ export function MomentsListScreen() {
   const [showSettingsOverlay, setShowSettingsOverlay] = useState(false);
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
   const [coverPickerMomentId, setCoverPickerMomentId] = useState<string | null>(null);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
   const {
     query,
     onQueryChange,
@@ -123,24 +137,58 @@ export function MomentsListScreen() {
     (momentCovers ?? []).map((cover) => [cover.momentId, cover] as const)
   );
 
+  const refreshCoverPhotos = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['moment-covers'] });
+  }, [queryClient]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshCoverPhotos();
+    }, [refreshCoverPhotos])
+  );
+
+  useMomentsPhotoChanges(momentIds, refreshCoverPhotos);
+
+  useEffect(() => {
+    if (!momentCovers) return;
+
+    for (const cover of momentCovers) {
+      prefetchCoverStills(cover.photos.slice(0, 12));
+    }
+  }, [momentCovers]);
+
   const coverPickerCover = coverPickerMomentId
     ? coverByMomentId.get(coverPickerMomentId)
     : undefined;
+
+  const coverPickerPhotos = useMemo(
+    () =>
+      coverPickerMomentId
+        ? mergeCoverPhotosWithLocal(coverPickerMomentId, coverPickerCover?.photos ?? [])
+        : [],
+    [coverPickerMomentId, coverPickerCover?.photos]
+  );
 
   const coverPickerMoment = coverPickerMomentId
     ? getMoment((data ?? []).find((row) => row.moment_id === coverPickerMomentId)!)
     : null;
 
-  function handleMomentCreated(momentId: string) {
+  function handleMomentCreated(momentId: string, name: string) {
     setShowCreateOverlay(false);
     void queryClient.invalidateQueries({ queryKey: ['moments', user?.id] });
-    router.push(`/moment/${momentId}` as any);
+    router.push({
+      pathname: '/moment/[id]' as any,
+      params: { id: momentId, name },
+    });
   }
 
-  function handleMomentJoined(momentId: string) {
+  function handleMomentJoined(momentId: string, name: string) {
     setShowJoinOverlay(false);
     void queryClient.invalidateQueries({ queryKey: ['moments', user?.id] });
-    router.push(`/moment/${momentId}` as any);
+    router.push({
+      pathname: '/moment/[id]' as any,
+      params: { id: momentId, name },
+    });
   }
 
   function handleCoverSelected(momentId: string, photoId: string) {
@@ -149,6 +197,39 @@ export function MomentsListScreen() {
     setMomentCoverPhoto(user.id, momentId, photoId);
     setCoverPickerMomentId(null);
     void queryClient.invalidateQueries({ queryKey: ['moment-covers', user.id] });
+  }
+
+  async function handleCoverUpload() {
+    if (!user || !coverPickerMomentId || isUploadingCover) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Photo access needed', 'Allow Pic It to choose a cover from your library.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 1,
+      copyToCacheDirectory: true,
+    });
+
+    if (result.canceled || !result.assets[0]?.uri) return;
+
+    setIsUploadingCover(true);
+
+    try {
+      const queued = queue.enqueue(coverPickerMomentId, result.assets[0].uri);
+      registerPhotoFile(queued.local_id, coverPickerMomentId, queued.local_uri);
+      setMomentCoverPhoto(user.id, coverPickerMomentId, queued.local_id);
+      setCoverPickerMomentId(null);
+      void queryClient.invalidateQueries({ queryKey: ['moment-covers', user.id] });
+      void scheduleSync(user.id, coverPickerMomentId);
+    } catch {
+      Alert.alert('Could not set cover', 'Try choosing another photo.');
+    } finally {
+      setIsUploadingCover(false);
+    }
   }
 
   function handleSearchResultPress(result: SearchResult) {
@@ -174,8 +255,16 @@ export function MomentsListScreen() {
           createdAt={moment?.created_at ?? ''}
           photoId={cover?.photoId ?? null}
           storagePath={cover?.storagePath ?? null}
-          onPress={() => router.push(`/moment/${item.moment_id}` as any)}
-          onLongPress={() => setCoverPickerMomentId(item.moment_id)}
+          onPress={() =>
+            router.push({
+              pathname: '/moment/[id]' as any,
+              params: { id: item.moment_id, name: moment?.name ?? '' },
+            })
+          }
+          onLongPress={() => {
+            prefetchCoverStills(cover?.photos ?? []);
+            setCoverPickerMomentId(item.moment_id);
+          }}
         />
       </View>
     );
@@ -244,11 +333,15 @@ export function MomentsListScreen() {
           visible={coverPickerMomentId !== null}
           blurTargetRef={blurTargetRef}
           momentName={coverPickerMoment?.name ?? 'Moment'}
-          photos={coverPickerCover?.photos ?? []}
+          photos={coverPickerPhotos}
           selectedPhotoId={coverPickerCover?.photoId ?? null}
           onClose={() => setCoverPickerMomentId(null)}
           onSelect={(photoId) => {
             if (coverPickerMomentId) handleCoverSelected(coverPickerMomentId, photoId);
+          }}
+          isUploading={isUploadingCover}
+          onUpload={() => {
+            void handleCoverUpload();
           }}
         />
       </SafeAreaView>
@@ -317,11 +410,15 @@ export function MomentsListScreen() {
         visible={coverPickerMomentId !== null}
         blurTargetRef={blurTargetRef}
         momentName={coverPickerMoment?.name ?? 'Moment'}
-        photos={coverPickerCover?.photos ?? []}
+        photos={coverPickerPhotos}
         selectedPhotoId={coverPickerCover?.photoId ?? null}
         onClose={() => setCoverPickerMomentId(null)}
         onSelect={(photoId) => {
           if (coverPickerMomentId) handleCoverSelected(coverPickerMomentId, photoId);
+        }}
+        isUploading={isUploadingCover}
+        onUpload={() => {
+          void handleCoverUpload();
         }}
       />
     </SafeAreaView>

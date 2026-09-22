@@ -2,7 +2,7 @@ import { saveMoments } from '@/lib/offline-cache';
 import { supabase } from '@/lib/supabase';
 
 export type JoinMomentResult =
-  | { ok: true; momentId: string }
+  | { ok: true; momentId: string; name: string }
   | { ok: false; error: string };
 
 export async function joinMoment(userId: string, code: string): Promise<JoinMomentResult> {
@@ -37,5 +37,5 @@ export async function joinMoment(userId: string, code: string): Promise<JoinMome
     },
   ]);
 
-  return { ok: true, momentId: moment.id };
+  return { ok: true, momentId: moment.id, name: moment.name };
 }

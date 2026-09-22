@@ -9,7 +9,10 @@ import {
   getAllPendingPickRows,
   remapPickPhotoId,
 } from '@/lib/picks-cache';
+import { isVideoUri } from '@/lib/media-uri';
+import { remapCoverPhotoId } from '@/lib/moment-cover';
 import { registerPhotoFile } from '@/lib/photo-cache';
+import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
 import { uploadPhoto } from '@/lib/storage';
 
@@ -45,6 +48,7 @@ export async function syncMoment(momentId: string, userId: string): Promise<void
 
 async function syncMomentInternal(momentId: string, userId: string): Promise<void> {
   const pending = queue.getPending(momentId);
+  if (pending.length === 0) return;
 
   for (const photo of pending) {
     if (!queue.tryClaimForSync(photo.local_id)) continue;
@@ -68,8 +72,9 @@ async function syncMomentInternal(momentId: string, userId: string): Promise<voi
       queue.markSynced(photo.local_id, data.id);
       registerPhotoFile(data.id, momentId, photo.local_uri);
       remapPickPhotoId(userId, photo.local_id, data.id);
+      remapCoverPhotoId(photo.local_id, data.id);
 
-      if (isOnnxRuntimeAvailable()) {
+      if (isOnnxRuntimeAvailable() && !isVideoUri(photo.local_uri)) {
         void embedImage(photo.local_uri)
           .then((vec) => saveEmbedding(data.id, vec))
           .catch((err) => {
@@ -80,6 +85,9 @@ async function syncMomentInternal(momentId: string, userId: string): Promise<voi
       queue.markFailed(photo.local_id);
     }
   }
+
+  void queryClient.invalidateQueries({ queryKey: ['moment-covers'] });
+  void queryClient.invalidateQueries({ queryKey: ['photos', momentId] });
 }
 
 function resolveRemotePhotoId(photoId: string): string | null {

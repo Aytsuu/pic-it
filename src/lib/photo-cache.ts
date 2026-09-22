@@ -55,6 +55,11 @@ export function getPhotoLocalUri(photoId: string): string | null {
 export function getPhotoDisplayUri(photoId: string, storagePath: string): string {
   const localUri = getPhotoLocalUri(photoId);
   if (localUri) return localUri;
+
+  const queued = getByLocalId(photoId);
+  if (queued?.local_uri) return queued.local_uri;
+
+  if (!storagePath) return '';
   return `${BUCKET_URL}/${storagePath}`;
 }
 
@@ -109,6 +114,10 @@ export async function resolvePhotoUri(
   }
 
   if (cached) return cached;
+
+  if (storagePath) {
+    return `${BUCKET_URL}/${storagePath}`;
+  }
 
   throw new Error('Photo file is not available on this device yet');
 }

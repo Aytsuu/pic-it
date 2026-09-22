@@ -1,21 +1,12 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Href, Slot, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/hooks/use-auth';
 import { useSync } from '@/hooks/use-sync';
+import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      networkMode: 'offlineFirst',
-      staleTime: 60_000,
-      retry: 1,
-    },
-  },
-});
 
 void supabase;
 

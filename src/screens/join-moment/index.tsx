@@ -1,15 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Text, TextInput, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { useAuth } from '@/hooks/use-auth';
 import { joinMoment } from '@/lib/join-moment';
 
 export function JoinMomentScreen() {
+  const { code: initialCode } = useLocalSearchParams<{ code?: string }>();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!initialCode) return;
+    setCode(initialCode.trim().toUpperCase());
+  }, [initialCode]);
 
   async function handleJoin() {
     if (!user) return;

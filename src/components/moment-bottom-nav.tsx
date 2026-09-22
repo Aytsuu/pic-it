@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -11,10 +11,10 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type NavItem = {
-  id: 'camera' | 'select' | 'search';
+  id: 'camera' | 'select' | 'search' | 'info';
   label: string;
-  iosSymbol: 'camera.fill' | 'checkmark.circle' | 'magnifyingglass';
-  androidSymbol: 'photo_camera' | 'check_circle' | 'search';
+  iosSymbol: 'camera.fill' | 'checkmark.circle' | 'magnifyingglass' | 'info.circle';
+  androidSymbol: 'photo_camera' | 'check_circle' | 'search' | 'info';
   onPress: () => void;
   isActive?: boolean;
 };
@@ -23,6 +23,7 @@ type Props = {
   onCamera: () => void;
   onSelect: () => void;
   onSearch: () => void;
+  onInfo: () => void;
   isSelecting?: boolean;
 };
 
@@ -33,6 +34,7 @@ export function MomentBottomNav({
   onCamera,
   onSelect,
   onSearch,
+  onInfo,
   isSelecting = false,
 }: Props) {
   const insets = useSafeAreaInsets();
@@ -85,6 +87,13 @@ export function MomentBottomNav({
       androidSymbol: 'search',
       onPress: onSearch,
     },
+    {
+      id: 'info',
+      label: 'Info',
+      iosSymbol: 'info.circle',
+      androidSymbol: 'info',
+      onPress: onInfo,
+    },
   ];
 
   return (
@@ -104,11 +113,10 @@ export function MomentBottomNav({
           >
             <SymbolView
               name={{ ios: item.iosSymbol, android: item.androidSymbol }}
-              size={24}
+              size={30}
               tintColor={item.isActive ? '#6eb5ff' : '#fff'}
               weight="medium"
             />
-            <Text style={[styles.label, item.isActive && styles.labelActive]}>{item.label}</Text>
           </Pressable>
         ))}
       </Animated.View>
@@ -128,10 +136,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    width: 260,
-    paddingVertical: 10,
+    width: 320,
+    paddingVertical: 8,
     paddingHorizontal: 8,
-    borderRadius: 28,
+    borderRadius: 9999,
     backgroundColor: 'rgba(28, 28, 30, 0.94)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.12)',
@@ -146,22 +154,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 9999,
   },
   itemActive: {
     backgroundColor: 'rgba(110, 181, 255, 0.12)',
   },
   itemPressed: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  label: {
-    color: 'rgba(255, 255, 255, 0.72)',
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  labelActive: {
-    color: '#6eb5ff',
   },
 });

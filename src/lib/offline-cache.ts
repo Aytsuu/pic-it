@@ -19,16 +19,52 @@ export type CachedMemberRow = {
   moments: CachedMoment;
 };
 
+const momentNamesById = new Map<string, string>();
+
+export function rememberMomentName(momentId: string, name: string): void {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  momentNamesById.set(momentId, trimmed);
+}
+
+export function getRememberedMomentName(momentId: string): string | undefined {
+  return momentNamesById.get(momentId);
+}
+
 export function saveMoments(userId: string, moments: CachedMoment[]): void {
   const cachedAt = Date.now();
 
   for (const moment of moments) {
+    rememberMomentName(moment.id, moment.name);
     db.runSync(
       `insert or replace into cached_moments (user_id, moment_id, name, created_at, cached_at)
        values (?, ?, ?, ?, ?)`,
       [userId, moment.id, moment.name, moment.created_at, cachedAt]
     );
   }
+}
+
+export function getCachedMoment(userId: string, momentId: string): CachedMoment | null {
+  const row = db.getFirstSync<{
+    moment_id: string;
+    name: string;
+    created_at: string;
+  }>(
+    `select moment_id, name, created_at
+     from cached_moments
+     where user_id = ? and moment_id = ?`,
+    [userId, momentId]
+  );
+
+  if (!row) return null;
+
+  rememberMomentName(momentId, row.name);
+
+  return {
+    id: row.moment_id,
+    name: row.name,
+    created_at: row.created_at,
+  };
 }
 
 export function getCachedMoments(userId: string): CachedMemberRow[] {

@@ -1,0 +1,491 @@
+diff --git a/node_modules/expo-camera/android/.gradle/9.2.0/checksums/checksums.lock b/node_modules/expo-camera/android/.gradle/9.2.0/checksums/checksums.lock
+new file mode 100644
+index 0000000..6be3d46
+Binary files /dev/null and b/node_modules/expo-camera/android/.gradle/9.2.0/checksums/checksums.lock differ
+diff --git a/node_modules/expo-camera/android/.gradle/9.2.0/fileChanges/last-build.bin b/node_modules/expo-camera/android/.gradle/9.2.0/fileChanges/last-build.bin
+new file mode 100644
+index 0000000..f76dd23
+Binary files /dev/null and b/node_modules/expo-camera/android/.gradle/9.2.0/fileChanges/last-build.bin differ
+diff --git a/node_modules/expo-camera/android/.gradle/9.2.0/fileHashes/fileHashes.bin b/node_modules/expo-camera/android/.gradle/9.2.0/fileHashes/fileHashes.bin
+new file mode 100644
+index 0000000..961bf40
+Binary files /dev/null and b/node_modules/expo-camera/android/.gradle/9.2.0/fileHashes/fileHashes.bin differ
+diff --git a/node_modules/expo-camera/android/.gradle/9.2.0/fileHashes/fileHashes.lock b/node_modules/expo-camera/android/.gradle/9.2.0/fileHashes/fileHashes.lock
+new file mode 100644
+index 0000000..a7af8b9
+Binary files /dev/null and b/node_modules/expo-camera/android/.gradle/9.2.0/fileHashes/fileHashes.lock differ
+diff --git a/node_modules/expo-camera/android/.gradle/9.2.0/gc.properties b/node_modules/expo-camera/android/.gradle/9.2.0/gc.properties
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/expo-camera/android/.gradle/buildOutputCleanup/buildOutputCleanup.lock b/node_modules/expo-camera/android/.gradle/buildOutputCleanup/buildOutputCleanup.lock
+new file mode 100644
+index 0000000..9f0c906
+Binary files /dev/null and b/node_modules/expo-camera/android/.gradle/buildOutputCleanup/buildOutputCleanup.lock differ
+diff --git a/node_modules/expo-camera/android/.gradle/buildOutputCleanup/cache.properties b/node_modules/expo-camera/android/.gradle/buildOutputCleanup/cache.properties
+new file mode 100644
+index 0000000..cc4a093
+--- /dev/null
++++ b/node_modules/expo-camera/android/.gradle/buildOutputCleanup/cache.properties
+@@ -0,0 +1,2 @@
++#Mon Sep 21 20:22:15 PST 2026
++gradle.version=9.2.0
+diff --git a/node_modules/expo-camera/android/.gradle/vcs-1/gc.properties b/node_modules/expo-camera/android/.gradle/vcs-1/gc.properties
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/expo-camera/android/src/main/java/expo/modules/camera/CameraViewModule.kt b/node_modules/expo-camera/android/src/main/java/expo/modules/camera/CameraViewModule.kt
+index 21382f8..4f7511f 100644
+--- a/node_modules/expo-camera/android/src/main/java/expo/modules/camera/CameraViewModule.kt
++++ b/node_modules/expo-camera/android/src/main/java/expo/modules/camera/CameraViewModule.kt
+@@ -306,6 +306,18 @@ class CameraViewModule : Module() {
+         }
+       }
+ 
++      Prop("exposureCompensation") { view, exposureCompensation: Float? ->
++        exposureCompensation?.let {
++          if (view.exposureCompensation != it) {
++            view.exposureCompensation = it
++          }
++        } ?: run {
++          if (view.exposureCompensation != 0f) {
++            view.exposureCompensation = 0f
++          }
++        }
++      }
++
+       Prop("mode") { view, mode: CameraMode? ->
+         mode?.let {
+           if (view.cameraMode != it) {
+@@ -474,6 +486,14 @@ class CameraViewModule : Module() {
+       AsyncFunction("pausePreview") { view: ExpoCameraView ->
+         view.pausePreview()
+       }
++
++      AsyncFunction("focusAt") { view: ExpoCameraView, x: Double, y: Double ->
++        view.focusAt(x.toFloat(), y.toFloat())
++      }.runOnQueue(Queues.MAIN)
++
++      AsyncFunction("restoreContinuousFocus") { view: ExpoCameraView ->
++        view.restoreContinuousFocus()
++      }.runOnQueue(Queues.MAIN)
+     }
+   }
+ 
+diff --git a/node_modules/expo-camera/android/src/main/java/expo/modules/camera/ExpoCameraView.kt b/node_modules/expo-camera/android/src/main/java/expo/modules/camera/ExpoCameraView.kt
+index 999a22c..ac3526f 100644
+--- a/node_modules/expo-camera/android/src/main/java/expo/modules/camera/ExpoCameraView.kt
++++ b/node_modules/expo-camera/android/src/main/java/expo/modules/camera/ExpoCameraView.kt
+@@ -87,6 +87,7 @@ import kotlinx.coroutines.launch
+ import java.io.File
+ import java.lang.Float.max
+ import java.lang.Float.min
++import java.util.concurrent.TimeUnit
+ import kotlin.math.roundToInt
+ import kotlin.properties.Delegates
+ 
+@@ -168,6 +169,12 @@ class ExpoCameraView(
+       setCameraZoom(value)
+     }
+ 
++  var exposureCompensation: Float = 0f
++    set(value) {
++      field = value
++      setCameraExposure(value)
++    }
++
+   var autoFocus: FocusMode = FocusMode.OFF
+     set(value) {
+       field = value
+@@ -537,6 +544,7 @@ class ExpoCameraView(
+     }
+     // Set the previous zoom level after recreating the camera
+     setCameraZoom(zoom)
++    setCameraExposure(exposureCompensation)
+     this.cameraProvider = cameraProvider
+   }
+ 
+@@ -629,20 +637,40 @@ class ExpoCameraView(
+   }
+ 
+   private fun startFocusMetering() {
+-    camera?.let {
+-      val meteringPointFactory = DisplayOrientedMeteringPointFactory(
+-        previewView.display,
+-        it.cameraInfo,
+-        previewView.width.toFloat(),
+-        previewView.height.toFloat()
+-      )
+-      val action = FocusMeteringAction.Builder(
+-        meteringPointFactory.createPoint(1f, 1f),
+-        FocusMeteringAction.FLAG_AF
+-      )
+-        .build()
+-      it.cameraControl.startFocusAndMetering(action)
++    val width = previewView.width.toFloat()
++    val height = previewView.height.toFloat()
++    if (width <= 0f || height <= 0f) return
++    startFocusMeteringAt(width / 2f, height / 2f, autoCancel = true)
++  }
++
++  fun focusAt(x: Float, y: Float) {
++    startFocusMeteringAt(x, y, autoCancel = true)
++  }
++
++  fun restoreContinuousFocus() {
++    camera?.cameraControl?.cancelFocusAndMetering()
++  }
++
++  private fun startFocusMeteringAt(x: Float, y: Float, autoCancel: Boolean) {
++    val camera = camera ?: return
++    val width = previewView.width.toFloat()
++    val height = previewView.height.toFloat()
++    if (width <= 0f || height <= 0f) return
++
++    val meteringPointFactory = DisplayOrientedMeteringPointFactory(
++      previewView.display,
++      camera.cameraInfo,
++      width,
++      height
++    )
++    val actionBuilder = FocusMeteringAction.Builder(
++      meteringPointFactory.createPoint(x, y),
++      FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE
++    )
++    if (autoCancel) {
++      actionBuilder.setAutoCancelDuration(5, TimeUnit.SECONDS)
+     }
++    camera.cameraControl.startFocusAndMetering(actionBuilder.build())
+   }
+ 
+   private fun setCameraZoom(value: Float) {
+@@ -651,12 +679,20 @@ class ExpoCameraView(
+     camera?.cameraControl?.setZoomRatio(targetZoomRatio)
+   }
+ 
++  private fun setCameraExposure(value: Float) {
++    val range = camera?.cameraInfo?.exposureState?.exposureCompensationRange ?: return
++    val t = value.coerceIn(-1f, 1f)
++    val index = (range.lower + (t + 1f) / 2f * (range.upper - range.lower)).toInt()
++    camera?.cameraControl?.setExposureCompensationIndex(index.coerceIn(range.lower, range.upper))
++  }
++
+   private fun observeCameraState(cameraInfo: CameraInfo) {
+     cameraInfo.cameraState.observe(currentActivity) {
+       when (it.type) {
+         CameraState.Type.OPEN -> {
+           onCameraReady(Unit)
+           setTorchEnabled(enableTorch)
++          setCameraExposure(exposureCompensation)
+         }
+ 
+         else -> {}
+diff --git a/node_modules/expo-camera/build/Camera.types.d.ts b/node_modules/expo-camera/build/Camera.types.d.ts
+index 0ee50ec..0d60a43 100644
+--- a/node_modules/expo-camera/build/Camera.types.d.ts
++++ b/node_modules/expo-camera/build/Camera.types.d.ts
+@@ -327,6 +327,12 @@ export type CameraViewProps = ViewProps & {
+      * @default 0
+      */
+     zoom?: number;
++    /**
++     * Exposure compensation from `-1` (darker) to `1` (brighter). `0` is the camera's automatic baseline.
++     * Applies to the live preview and captured photos/videos on iOS and Android.
++     * @default 0
++     */
++    exposureCompensation?: number;
+     /**
+      * Used to select image or video output.
+      * @default 'picture'
+@@ -471,6 +477,8 @@ export interface CameraViewRef {
+     readonly launchModernScanner: () => Promise<void>;
+     readonly resumePreview: () => Promise<void>;
+     readonly pausePreview: () => Promise<void>;
++    readonly focusAt: (x: number, y: number) => Promise<void>;
++    readonly restoreContinuousFocus: () => Promise<void>;
+ }
+ /**
+  * @hidden
+@@ -494,6 +502,7 @@ export type CameraNativeProps = {
+     autoFocus?: FocusMode;
+     mute?: boolean;
+     zoom?: number;
++    exposureCompensation?: number;
+     ratio?: CameraRatio;
+     barcodeScannerSettings?: BarcodeSettings;
+     barcodeScannerEnabled?: boolean;
+diff --git a/node_modules/expo-camera/build/CameraView.d.ts b/node_modules/expo-camera/build/CameraView.d.ts
+index da858fa..df92a0a 100644
+--- a/node_modules/expo-camera/build/CameraView.d.ts
++++ b/node_modules/expo-camera/build/CameraView.d.ts
+@@ -48,6 +48,14 @@ export default class CameraView extends Component<CameraViewProps> {
+      * Pauses the camera preview. It is not recommended to use `takePictureAsync` when preview is paused.
+      */
+     pausePreview(): Promise<void>;
++    /**
++     * Focus and meter at a point in the camera preview, in view coordinates.
++     */
++    focusAtAsync(x: number, y: number): Promise<void>;
++    /**
++     * Restore continuous autofocus at the center of the frame.
++     */
++    restoreContinuousFocusAsync(): Promise<void>;
+     static ConversionTables: {
+         [prop: string]: unknown;
+         type: Record<keyof import("./Camera.types").CameraType, import("./Camera.types").CameraNativeProps["facing"]>;
+diff --git a/node_modules/expo-camera/build/CameraView.js b/node_modules/expo-camera/build/CameraView.js
+index 78f8198..1332ba1 100644
+--- a/node_modules/expo-camera/build/CameraView.js
++++ b/node_modules/expo-camera/build/CameraView.js
+@@ -107,6 +107,18 @@ export default class CameraView extends Component {
+     async pausePreview() {
+         return this._cameraRef.current?.pausePreview();
+     }
++    /**
++     * Focus and meter at a point in the camera preview, in view coordinates.
++     */
++    async focusAtAsync(x, y) {
++        return this._cameraRef.current?.focusAt?.(x, y);
++    }
++    /**
++     * Restore continuous autofocus at the center of the frame.
++     */
++    async restoreContinuousFocusAsync() {
++        return this._cameraRef.current?.restoreContinuousFocus?.();
++    }
+     // Values under keys from this object will be transformed to native options
+     static ConversionTables = ConversionTables;
+     static defaultProps = {
+diff --git a/node_modules/expo-camera/ios/CameraViewModule.swift b/node_modules/expo-camera/ios/CameraViewModule.swift
+index cccd73f..4cfe466 100644
+--- a/node_modules/expo-camera/ios/CameraViewModule.swift
++++ b/node_modules/expo-camera/ios/CameraViewModule.swift
+@@ -136,6 +136,16 @@ public final class CameraViewModule: Module, ScannerResultHandler {
+         }
+       }
+ 
++      Prop("exposureCompensation") { (view, exposureCompensation: Float?) in
++        if let exposureCompensation, fabsf(view.exposureCompensation - exposureCompensation) > Float.ulpOfOne {
++          view.exposureCompensation = exposureCompensation
++          return
++        }
++        if exposureCompensation == nil && view.exposureCompensation != 0 {
++          view.exposureCompensation = 0
++        }
++      }
++
+       Prop("mode") { (view, mode: CameraMode?) in
+         if let mode, view.mode != mode {
+           view.mode = mode
+@@ -250,6 +260,14 @@ public final class CameraViewModule: Module, ScannerResultHandler {
+         view.pausePreview()
+       }
+ 
++      AsyncFunction("focusAt") { (view, x: Double, y: Double) in
++        view.focusAt(x: x, y: y)
++      }
++
++      AsyncFunction("restoreContinuousFocus") { view in
++        view.restoreContinuousFocus()
++      }
++
+       AsyncFunction("getAvailablePictureSizes") {
+         return PictureSize.allCases.map { $0.rawValue }
+       }
+diff --git a/node_modules/expo-camera/ios/Current/CameraSessionManager.swift b/node_modules/expo-camera/ios/Current/CameraSessionManager.swift
+index 7a6568c..5c5e634 100644
+--- a/node_modules/expo-camera/ios/Current/CameraSessionManager.swift
++++ b/node_modules/expo-camera/ios/Current/CameraSessionManager.swift
+@@ -14,6 +14,7 @@ protocol CameraSessionManagerDelegate: AnyObject {
+   var torchEnabled: Bool { get }
+   var autoFocus: AVCaptureDevice.FocusMode { get }
+   var zoom: CGFloat { get }
++  var exposureCompensation: Float { get }
+   var onMountError: EventDispatcher { get }
+   var onCameraReady: EventDispatcher { get }
+   var permissionsManager: EXPermissionsInterface? { get }
+@@ -224,6 +225,80 @@ class CameraSessionManager: NSObject, DeviceDiscoveryDelegate {
+     }
+   }
+ 
++  func updateExposure() {
++    guard let device = captureDeviceInput?.device, let delegate else {
++      return
++    }
++
++    do {
++      try device.lockForConfiguration()
++      defer { device.unlockForConfiguration() }
++
++      let minBias = device.minExposureTargetBias
++      let maxBias = device.maxExposureTargetBias
++      let t = max(-1, min(1, delegate.exposureCompensation))
++      let bias = minBias + ((t + 1) / 2) * (maxBias - minBias)
++      device.setExposureTargetBias(bias, completionHandler: nil)
++    } catch {
++      log.info("\(#function): \(error.localizedDescription)")
++    }
++  }
++
++  func focus(at devicePoint: CGPoint) {
++    guard let device = captureDeviceInput?.device else {
++      return
++    }
++
++    do {
++      try device.lockForConfiguration()
++      defer { device.unlockForConfiguration() }
++
++      if device.isFocusPointOfInterestSupported {
++        device.focusPointOfInterest = devicePoint
++        if device.isFocusModeSupported(.continuousAutoFocus) {
++          device.focusMode = .continuousAutoFocus
++        } else if device.isFocusModeSupported(.autoFocus) {
++          device.focusMode = .autoFocus
++        }
++      }
++
++      if device.isExposurePointOfInterestSupported {
++        device.exposurePointOfInterest = devicePoint
++        if device.isExposureModeSupported(.continuousAutoExposure) {
++          device.exposureMode = .continuousAutoExposure
++        }
++      }
++    } catch {
++      log.info("\(#function): \(error.localizedDescription)")
++    }
++  }
++
++  func restoreContinuousFocus() {
++    guard let device = captureDeviceInput?.device else {
++      return
++    }
++
++    do {
++      try device.lockForConfiguration()
++      defer { device.unlockForConfiguration() }
++
++      if device.isFocusPointOfInterestSupported {
++        device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
++      }
++      if device.isFocusModeSupported(.continuousAutoFocus) {
++        device.focusMode = .continuousAutoFocus
++      }
++      if device.isExposurePointOfInterestSupported {
++        device.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
++      }
++      if device.isExposureModeSupported(.continuousAutoExposure) {
++        device.exposureMode = .continuousAutoExposure
++      }
++    } catch {
++      log.info("\(#function): \(error.localizedDescription)")
++    }
++  }
++
+   func getAvailableLenses() -> [String] {
+     guard let delegate else {
+       return []
+@@ -356,6 +431,7 @@ class CameraSessionManager: NSObject, DeviceDiscoveryDelegate {
+         session.addInput(deviceInput)
+         captureDeviceInput = deviceInput
+         updateZoom()
++        updateExposure()
+       }
+     } catch {
+       delegate.onMountError(["message": "Camera could not be started - \(error.localizedDescription)"])
+diff --git a/node_modules/expo-camera/ios/Current/CameraView.swift b/node_modules/expo-camera/ios/Current/CameraView.swift
+index 4692d00..c8990dd 100644
+--- a/node_modules/expo-camera/ios/Current/CameraView.swift
++++ b/node_modules/expo-camera/ios/Current/CameraView.swift
+@@ -147,6 +147,14 @@ public class CameraView: ExpoView, EXAppLifecycleListener, EXCameraInterface, Ca
+     }
+   }
+ 
++  var exposureCompensation: Float = 0 {
++    didSet {
++      sessionQueue.async {
++        self.sessionManager.updateExposure()
++      }
++    }
++  }
++
+   // MARK: - Events
+ 
+   let onCameraReady = EventDispatcher()
+@@ -359,6 +367,19 @@ public class CameraView: ExpoView, EXAppLifecycleListener, EXCameraInterface, Ca
+     previewLayer.connection?.isEnabled = false
+   }
+ 
++  func focusAt(x: Double, y: Double) {
++    let devicePoint = previewLayer.captureDevicePointConverted(fromLayerPoint: CGPoint(x: x, y: y))
++    sessionQueue.async {
++      self.sessionManager.focus(at: devicePoint)
++    }
++  }
++
++  func restoreContinuousFocus() {
++    sessionQueue.async {
++      self.sessionManager.restoreContinuousFocus()
++    }
++  }
++
+   @objc func orientationChanged() {
+     // On iOS 17+ the RotationCoordinator's KVO drives preview rotation; the legacy
+     // notification path is only needed on iOS 16.
+diff --git a/node_modules/expo-camera/src/Camera.types.ts b/node_modules/expo-camera/src/Camera.types.ts
+index 7cf0a07..08ec70a 100644
+--- a/node_modules/expo-camera/src/Camera.types.ts
++++ b/node_modules/expo-camera/src/Camera.types.ts
+@@ -362,6 +362,12 @@ export type CameraViewProps = ViewProps & {
+    * @default 0
+    */
+   zoom?: number;
++  /**
++   * Exposure compensation from `-1` (darker) to `1` (brighter). `0` is the camera's automatic baseline.
++   * Applies to the live preview and captured photos/videos on iOS and Android.
++   * @default 0
++   */
++  exposureCompensation?: number;
+   /**
+    * Used to select image or video output.
+    * @default 'picture'
+@@ -505,6 +511,8 @@ export interface CameraViewRef {
+   readonly launchModernScanner: () => Promise<void>;
+   readonly resumePreview: () => Promise<void>;
+   readonly pausePreview: () => Promise<void>;
++  readonly focusAt: (x: number, y: number) => Promise<void>;
++  readonly restoreContinuousFocus: () => Promise<void>;
+ }
+ 
+ /**
+@@ -527,6 +535,7 @@ export type CameraNativeProps = {
+   autoFocus?: FocusMode;
+   mute?: boolean;
+   zoom?: number;
++  exposureCompensation?: number;
+   ratio?: CameraRatio;
+   barcodeScannerSettings?: BarcodeSettings;
+   barcodeScannerEnabled?: boolean;
+diff --git a/node_modules/expo-camera/src/CameraView.tsx b/node_modules/expo-camera/src/CameraView.tsx
+index b2cc359..8bafdb1 100644
+--- a/node_modules/expo-camera/src/CameraView.tsx
++++ b/node_modules/expo-camera/src/CameraView.tsx
+@@ -153,6 +153,20 @@ export default class CameraView extends Component<CameraViewProps> {
+     return this._cameraRef.current?.pausePreview();
+   }
+ 
++  /**
++   * Focus and meter at a point in the camera preview, in view coordinates.
++   */
++  async focusAtAsync(x: number, y: number): Promise<void> {
++    return this._cameraRef.current?.focusAt?.(x, y);
++  }
++
++  /**
++   * Restore continuous autofocus at the center of the frame.
++   */
++  async restoreContinuousFocusAsync(): Promise<void> {
++    return this._cameraRef.current?.restoreContinuousFocus?.();
++  }
++
+   // Values under keys from this object will be transformed to native options
+   static ConversionTables = ConversionTables;
+ 

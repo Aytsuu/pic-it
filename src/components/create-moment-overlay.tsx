@@ -9,7 +9,7 @@ type Props = {
   visible: boolean;
   blurTargetRef: RefObject<RNView | null>;
   onClose: () => void;
-  onCreated: (momentId: string) => void;
+  onCreated: (momentId: string, name: string) => void;
 };
 
 export function CreateMomentOverlay({ visible, blurTargetRef, onClose, onCreated }: Props) {
@@ -40,7 +40,7 @@ export function CreateMomentOverlay({ visible, blurTargetRef, onClose, onCreated
       return;
     }
 
-    onCreated(result.momentId);
+    onCreated(result.momentId, name.trim());
   }
 
   return (

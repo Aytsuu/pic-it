@@ -17,17 +17,32 @@ export type GridItem = {
 
 type Props = {
   items: GridItem[];
+  contentPaddingTop?: number;
   contentPaddingBottom?: number;
   isSelecting?: boolean;
+  initialScrollToEnd?: boolean;
 };
 
-export function PhotoGrid({ items, contentPaddingBottom = 0, isSelecting = false }: Props) {
+export function PhotoGrid({
+  items,
+  contentPaddingTop = 0,
+  contentPaddingBottom = 0,
+  isSelecting = false,
+  initialScrollToEnd = false,
+}: Props) {
+  const initialScrollIndex =
+    initialScrollToEnd && items.length > 0 ? items.length - 1 : undefined;
+
   return (
     <FlashList
       data={items}
       numColumns={3}
+      initialScrollIndex={initialScrollIndex}
       keyExtractor={(item) => item.key}
-      contentContainerStyle={{ paddingBottom: contentPaddingBottom }}
+      contentContainerStyle={{
+        paddingTop: contentPaddingTop,
+        paddingBottom: contentPaddingBottom,
+      }}
       renderItem={({ item }) => (
         <PhotoCell
           source={item.source}

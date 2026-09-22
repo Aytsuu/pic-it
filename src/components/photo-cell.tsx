@@ -1,6 +1,11 @@
+import { SymbolView } from 'expo-symbols';
+import { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { isVideoUri } from '@/lib/media-uri';
 import { SyncStatus } from '@/lib/queue';
+import { formatVideoDuration, getVideoDuration } from '@/lib/video-metadata';
+import { getVideoThumbnailUri } from '@/lib/video-thumbnail';
 
 type Props = {
   source: string;
@@ -23,6 +28,38 @@ export function PhotoCell({
   onDetailPress,
   onFailedPress,
 }: Props) {
+  const isVideo = isVideoUri(source);
+  const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
+  const [durationLabel, setDurationLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isVideo) {
+      setThumbnailUri(null);
+      setDurationLabel(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    void getVideoThumbnailUri(source).then((uri) => {
+      if (!cancelled) {
+        setThumbnailUri(uri);
+      }
+    });
+
+    void getVideoDuration(source).then((duration) => {
+      if (!cancelled && duration !== null) {
+        setDurationLabel(formatVideoDuration(duration));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isVideo, source]);
+
+  const displayUri = isVideo ? thumbnailUri : source;
+
   const syncBadge =
     syncStatus === 'pending' || syncStatus === 'syncing'
       ? '⏳'
@@ -44,7 +81,28 @@ export function PhotoCell({
 
   return (
     <Pressable onPress={handlePress} style={styles.cell}>
-      <Image source={{ uri: source }} style={styles.image} />
+      {displayUri ? (
+        <Image source={{ uri: displayUri }} style={styles.image} />
+      ) : (
+        <View style={styles.placeholder} />
+      )}
+
+      {isVideo && !isSelecting ? (
+        <View style={styles.playBadge}>
+          <SymbolView
+            name={{ ios: 'play.fill', android: 'play_arrow' }}
+            size={18}
+            tintColor="#fff"
+            weight="semibold"
+          />
+        </View>
+      ) : null}
+
+      {isVideo && durationLabel ? (
+        <View style={styles.durationBadge} pointerEvents="none">
+          <Text style={styles.durationText}>{durationLabel}</Text>
+        </View>
+      ) : null}
 
       {isSelecting && isSelected && <View style={styles.selectedOverlay} />}
 
@@ -59,7 +117,7 @@ export function PhotoCell({
       )}
 
       {!isSelecting && isPicked && (
-        <View style={styles.pickedBadge}>
+        <View style={[styles.pickedBadge, isVideo && styles.pickedBadgeWithVideo]}>
           <Text style={styles.badgeText}>🔖</Text>
         </View>
       )}
@@ -73,12 +131,56 @@ export function PhotoCell({
   );
 }
 
+const CELL_RADIUS = 8;
+
 const styles = StyleSheet.create({
-  cell: { flex: 1, margin: 1, aspectRatio: 1, backgroundColor: '#111' },
-  image: { ...StyleSheet.absoluteFill },
+  cell: {
+    flex: 1,
+    margin: 1,
+    aspectRatio: 1,
+    backgroundColor: '#111',
+    borderRadius: CELL_RADIUS,
+    overflow: 'hidden',
+  },
+  image: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: CELL_RADIUS,
+  },
+  placeholder: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: '#111',
+    borderRadius: CELL_RADIUS,
+  },
+  playBadge: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    width: 36,
+    height: 36,
+    marginLeft: -18,
+    marginTop: -18,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  durationBadge: {
+    position: 'absolute',
+    bottom: 5,
+    right: 5,
+    paddingHorizontal: 2,
+    paddingVertical: 2,
+  },
+  durationText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
   selectedOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,122,255,0.3)',
+    borderRadius: CELL_RADIUS,
   },
   selectCircle: {
     position: 'absolute',
@@ -112,6 +214,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)',
     borderRadius: 8,
     padding: 2,
+  },
+  pickedBadgeWithVideo: {
+    right: undefined,
+    left: 4,
   },
   badge: {
     position: 'absolute',

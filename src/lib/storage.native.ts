@@ -1,10 +1,13 @@
 import { randomUUID } from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
 
+import { getFileExtension, getMimeType } from '@/lib/media-uri';
 import { supabase } from '@/lib/supabase';
 
 export async function uploadPhoto(momentId: string, localUri: string): Promise<string> {
-  const storagePath = `${momentId}/${randomUUID()}.jpg`;
+  const ext = getFileExtension(localUri);
+  const storagePath = `${momentId}/${randomUUID()}.${ext}`;
+  const contentType = getMimeType(localUri);
 
   const fileInfo = await FileSystem.getInfoAsync(localUri);
   if (!fileInfo.exists) throw new Error(`File not found: ${localUri}`);
@@ -17,7 +20,7 @@ export async function uploadPhoto(momentId: string, localUri: string): Promise<s
 
   const { error } = await supabase.storage
     .from('moment-photos')
-    .upload(storagePath, buffer, { contentType: 'image/jpeg', upsert: false });
+    .upload(storagePath, buffer, { contentType, upsert: false });
 
   if (error) throw error;
 

@@ -1,7 +1,7 @@
 import { BlurTargetView } from 'expo-blur';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -10,11 +10,16 @@ import {
   View,
   type View as RNView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MomentBottomNav } from '@/components/moment-bottom-nav';
+import {
+  getMomentHeaderScrollInset,
+  MomentNameHeader,
+} from '@/components/moment-name-header';
 import { GridItem, PhotoGrid } from '@/components/photo-grid';
 import { SemanticSearchOverlay } from '@/components/semantic-search-overlay';
+import { MomentInfoOverlay } from '@/components/moment-info-overlay';
 import { useAuth } from '@/hooks/use-auth';
 import { useMomentPhotoInserts } from '@/hooks/use-moment-photo-inserts';
 import { usePicks } from '@/hooks/use-picks';
@@ -22,7 +27,11 @@ import { useSemanticSearch } from '@/hooks/use-semantic-search';
 import {
   CachedPhoto,
   fetchWithCache,
+  getCachedMoment,
   getCachedPhotos,
+  getRememberedMomentName,
+  rememberMomentName,
+  saveMoments,
   savePhotos,
 } from '@/lib/offline-cache';
 import { isOnline } from '@/lib/network';
@@ -43,16 +52,28 @@ type SortedGridItem = GridItem & { sortTime: number };
 
 const NAV_CLEARANCE = 96;
 
+function normalizeParam(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
 export function MomentRollScreen() {
-  const { id: momentId } = useLocalSearchParams<{ id: string }>();
+  const { id: rawMomentId, name: rawMomentName } = useLocalSearchParams<{
+    id: string;
+    name?: string;
+  }>();
+  const momentId = normalizeParam(rawMomentId);
+  const paramName = normalizeParam(rawMomentName);
   const { user } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const blurTargetRef = useRef<RNView>(null);
   const [localRefreshKey, setLocalRefreshKey] = useState(0);
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
+  const [showInfoOverlay, setShowInfoOverlay] = useState(false);
   const storagePathsRef = useRef<Record<string, string>>({});
   const localUrisRef = useRef<Record<string, string>>({});
 
@@ -69,9 +90,71 @@ export function MomentRollScreen() {
     isPreviewMode: isSearchPreviewMode,
   } = useSemanticSearch(momentId);
 
+  const resolvedName = useMemo(() => {
+    if (!momentId) return paramName;
+    return (
+      getRememberedMomentName(momentId) ??
+      paramName ??
+      (user ? getCachedMoment(user.id, momentId)?.name : undefined)
+    );
+  }, [momentId, paramName, user]);
+
+  const [momentName, setMomentName] = useState(resolvedName ?? '');
+
+  useLayoutEffect(() => {
+    setMomentName(resolvedName ?? '');
+  }, [resolvedName]);
+
+  const momentQuery = useQuery({
+    queryKey: ['moment', momentId, user?.id],
+    enabled: !!momentId && !!user,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const id = momentId!;
+      const userId = user!.id;
+
+      return fetchWithCache({
+        fetchRemote: async () => {
+          const { data, error } = await supabase
+            .from('moments')
+            .select('id, name, created_at')
+            .eq('id', id)
+            .single();
+
+          if (error) throw error;
+
+          saveMoments(userId, [
+            {
+              id: data.id,
+              name: data.name,
+              created_at: data.created_at,
+            },
+          ]);
+
+          return { name: data.name };
+        },
+        readCache: () => {
+          const cached = getCachedMoment(userId, id);
+          if (!cached?.name) throw new Error('Moment name is not cached');
+          return { name: cached.name };
+        },
+        writeCache: () => {},
+      });
+    },
+  });
+
+  useEffect(() => {
+    const fetchedName = momentQuery.data?.name;
+    if (!fetchedName || !momentId) return;
+    rememberMomentName(momentId, fetchedName);
+    setMomentName(fetchedName);
+  }, [momentQuery.data?.name, momentId]);
+
   const remoteQuery = useQuery({
     queryKey: ['photos', momentId],
     enabled: !!momentId,
+    placeholderData: () =>
+      momentId ? (getCachedPhotos(momentId) as RemotePhoto[]) : [],
     queryFn: async () => {
       const id = momentId!;
 
@@ -204,7 +287,7 @@ export function MomentRollScreen() {
     }));
 
     return [...remoteItems, ...localItems]
-      .sort((a, b) => b.sortTime - a.sortTime)
+      .sort((a, b) => a.sortTime - b.sortTime)
       .map(({ sortTime: _sortTime, ...item }) => item);
   }, [remoteQuery.data, momentId, user, localRefreshKey, pickedIds, selectedIds, isSelecting, router]);
 
@@ -247,22 +330,34 @@ export function MomentRollScreen() {
 
   const showPickBar = isSelecting && selectedIds.size > 0;
   const showBottomNav = !showPickBar;
+  const photosReady = remoteQuery.isFetched || items.length > 0;
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.screen} edges={['left', 'right']}>
       <BlurTargetView ref={blurTargetRef} style={styles.content} collapsable={false}>
-        <PhotoGrid
-          items={items}
-          contentPaddingBottom={NAV_CLEARANCE}
-          isSelecting={isSelecting}
-        />
+        {photosReady ? (
+          <PhotoGrid
+            key={momentId}
+            items={items}
+            contentPaddingTop={getMomentHeaderScrollInset(insets.top)}
+            contentPaddingBottom={NAV_CLEARANCE}
+            isSelecting={isSelecting}
+            initialScrollToEnd
+          />
+        ) : null}
       </BlurTargetView>
+
+      <MomentNameHeader
+        name={momentName || 'Moment'}
+        blurTargetRef={blurTargetRef}
+      />
 
       {showBottomNav ? (
         <MomentBottomNav
           onCamera={() => router.push(`/moment/${momentId}/camera` as any)}
           onSelect={handleToggleSelect}
           onSearch={() => setShowSearchOverlay(true)}
+          onInfo={() => setShowInfoOverlay(true)}
           isSelecting={isSelecting}
         />
       ) : null}
@@ -297,6 +392,13 @@ export function MomentRollScreen() {
         emptyMessage={searchEmptyMessage}
         isPreviewMode={isSearchPreviewMode}
         onResultPress={handleSearchResultPress}
+      />
+
+      <MomentInfoOverlay
+        visible={showInfoOverlay}
+        momentId={Array.isArray(momentId) ? momentId[0] ?? '' : momentId ?? ''}
+        blurTargetRef={blurTargetRef}
+        onClose={() => setShowInfoOverlay(false)}
       />
     </SafeAreaView>
   );

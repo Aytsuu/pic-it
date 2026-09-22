@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -58,18 +58,18 @@ export function FloatingBottomNav({ onJoin, onCreate, onSearch, onSettings }: Pr
 
   const items: NavItem[] = [
     {
-      id: 'join',
-      label: 'Join',
-      iosSymbol: 'person.badge.plus',
-      androidSymbol: 'group_add',
-      onPress: onJoin,
-    },
-    {
       id: 'create',
       label: 'Create',
       iosSymbol: 'plus.circle.fill',
       androidSymbol: 'add_circle',
       onPress: onCreate,
+    },
+    {
+      id: 'join',
+      label: 'Join',
+      iosSymbol: 'person.badge.plus',
+      androidSymbol: 'group_add',
+      onPress: onJoin,
     },
     {
       id: 'search',
@@ -100,11 +100,10 @@ export function FloatingBottomNav({ onJoin, onCreate, onSearch, onSettings }: Pr
           >
             <SymbolView
               name={{ ios: item.iosSymbol, android: item.androidSymbol }}
-              size={24}
+              size={30}
               tintColor="#fff"
               weight="medium"
             />
-            <Text style={styles.label}>{item.label}</Text>
           </Pressable>
         ))}
       </Animated.View>
@@ -125,9 +124,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     width: 320,
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 8,
-    borderRadius: 28,
+    borderRadius: 9999,
     backgroundColor: 'rgba(28, 28, 30, 0.94)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.12)',
@@ -142,16 +141,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 9999,
   },
   itemPressed: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  label: {
-    color: 'rgba(255, 255, 255, 0.72)',
-    fontSize: 11,
-    fontWeight: '500',
   },
 });
