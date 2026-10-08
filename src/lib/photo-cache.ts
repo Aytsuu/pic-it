@@ -1,6 +1,13 @@
 import { db } from '@/lib/db';
 import { deleteEmbedding } from '@/lib/embedding-store';
-import { deleteCachedPhotoFile, deleteLocalFile, downloadPhotoToCache, fileExists } from '@/lib/photo-files';
+import { isVideoUri } from '@/lib/media-uri';
+import {
+  deleteCachedPhotoFile,
+  deleteLocalFile,
+  downloadPhotoToCache,
+  fileExists,
+  getCachedPhotoPath,
+} from '@/lib/photo-files';
 import { removeCachedPhoto } from '@/lib/offline-cache';
 import { Image } from 'expo-image';
 import { isOnline } from '@/lib/network';
@@ -71,7 +78,13 @@ export async function cacheRemotePhoto(
   const existing = getPhotoLocalUri(photoId);
   if (existing && await fileExists(existing)) return existing;
 
-  if (!(await isOnline())) return existing;
+  const standardCachePath = getCachedPhotoPath(momentId, photoId);
+  if (await fileExists(standardCachePath)) {
+    registerPhotoFile(photoId, momentId, standardCachePath);
+    return standardCachePath;
+  }
+
+  if (!(await isOnline())) return null;
 
   try {
     const localUri = await downloadPhotoToCache(
@@ -82,8 +95,48 @@ export async function cacheRemotePhoto(
     registerPhotoFile(photoId, momentId, localUri);
     return localUri;
   } catch {
-    return existing;
+    return null;
   }
+}
+
+function getCachedStoragePath(photoId: string): string | null {
+  const row = db.getFirstSync<{ storage_path: string }>(
+    `select storage_path from cached_photos where id = ?`,
+    [photoId]
+  );
+  return row?.storage_path ?? null;
+}
+
+/** Resolve a readable on-device image file for CLIP embedding (never returns remote URLs). */
+export async function resolveLocalPhotoUriForEmbedding(
+  photoId: string,
+  momentId: string,
+  options?: { localUri?: string | null; storagePath?: string | null }
+): Promise<string | null> {
+  const candidates: string[] = [];
+
+  if (options?.localUri) candidates.push(options.localUri);
+
+  const queued = getByLocalId(photoId);
+  if (queued?.local_uri) candidates.push(queued.local_uri);
+
+  const registered = getPhotoLocalUri(photoId);
+  if (registered) candidates.push(registered);
+
+  candidates.push(getCachedPhotoPath(momentId, photoId));
+
+  for (const uri of candidates) {
+    if (!uri || isVideoUri(uri)) continue;
+    if (await fileExists(uri)) return uri;
+  }
+
+  const storagePath = options?.storagePath ?? getCachedStoragePath(photoId);
+  if (!storagePath || isVideoUri(storagePath)) return null;
+
+  const downloaded = await cacheRemotePhoto(photoId, momentId, storagePath);
+  if (!downloaded || isVideoUri(downloaded)) return null;
+
+  return (await fileExists(downloaded)) ? downloaded : null;
 }
 
 export async function cacheRemotePhotos(momentId: string, photos: PhotoRef[]): Promise<void> {

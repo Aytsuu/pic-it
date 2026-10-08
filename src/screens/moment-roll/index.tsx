@@ -2,14 +2,7 @@ import { BlurTargetView } from 'expo-blur';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type View as RNView,
-} from 'react-native';
+import { Alert, StyleSheet, View, type View as RNView } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MomentBottomNav } from '@/components/moment-bottom-nav';
@@ -191,6 +184,11 @@ export function MomentRollScreen() {
     });
   }
 
+  const enterSelectionWith = useCallback((id: string) => {
+    setIsSelecting(true);
+    setSelectedIds(new Set([id]));
+  }, []);
+
   const onPhotosChanged = useCallback(() => {
     if (!momentId) return;
     void queryClient.invalidateQueries({ queryKey: ['photos', momentId] });
@@ -233,6 +231,7 @@ export function MomentRollScreen() {
       isPicked: pickedIds.has(photo.id),
       isSelected: selectedIds.has(photo.id),
       onPress: isSelecting ? () => toggleSelect(photo.id) : undefined,
+      onLongPress: !isSelecting ? () => enterSelectionWith(photo.id) : undefined,
       onDetailPress: !isSelecting
         ? () =>
             router.push({
@@ -255,6 +254,7 @@ export function MomentRollScreen() {
       isPicked: pickedIds.has(photo.local_id),
       isSelected: selectedIds.has(photo.local_id),
       onPress: isSelecting ? () => toggleSelect(photo.local_id) : undefined,
+      onLongPress: !isSelecting ? () => enterSelectionWith(photo.local_id) : undefined,
       onDetailPress: !isSelecting
         ? () =>
             router.push({
@@ -289,7 +289,17 @@ export function MomentRollScreen() {
     return [...remoteItems, ...localItems]
       .sort((a, b) => a.sortTime - b.sortTime)
       .map(({ sortTime: _sortTime, ...item }) => item);
-  }, [remoteQuery.data, momentId, user, localRefreshKey, pickedIds, selectedIds, isSelecting, router]);
+  }, [
+    remoteQuery.data,
+    momentId,
+    user,
+    localRefreshKey,
+    pickedIds,
+    selectedIds,
+    isSelecting,
+    router,
+    enterSelectionWith,
+  ]);
 
   async function handlePicIt() {
     try {
@@ -328,8 +338,6 @@ export function MomentRollScreen() {
     setSelectedIds(new Set());
   }
 
-  const showPickBar = isSelecting && selectedIds.size > 0;
-  const showBottomNav = !showPickBar;
   const photosReady = remoteQuery.isFetched || items.length > 0;
 
   return (
@@ -352,28 +360,16 @@ export function MomentRollScreen() {
         blurTargetRef={blurTargetRef}
       />
 
-      {showBottomNav ? (
-        <MomentBottomNav
-          onCamera={() => router.push(`/moment/${momentId}/camera` as any)}
-          onSelect={handleToggleSelect}
-          onSearch={() => setShowSearchOverlay(true)}
-          onInfo={() => setShowInfoOverlay(true)}
-          isSelecting={isSelecting}
-        />
-      ) : null}
-
-      {showPickBar ? (
-        <View style={styles.pickBar}>
-          <Text style={styles.pickCount}>{selectedIds.size} selected</Text>
-          <Pressable
-            onPress={() => void handlePicIt()}
-            disabled={isSaving}
-            style={[styles.picItButton, isSaving && styles.picItButtonDisabled]}
-          >
-            <Text style={styles.picItButtonText}>{isSaving ? 'Saving…' : 'Pic it'}</Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <MomentBottomNav
+        onCamera={() => router.push(`/moment/${momentId}/camera` as any)}
+        onSelect={handleToggleSelect}
+        onSearch={() => setShowSearchOverlay(true)}
+        onInfo={() => setShowInfoOverlay(true)}
+        isSelecting={isSelecting}
+        selectedCount={selectedIds.size}
+        onPicIt={() => void handlePicIt()}
+        isPicItSaving={isSaving}
+      />
 
       <SemanticSearchOverlay
         visible={showSearchOverlay}
@@ -410,38 +406,5 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  pickBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ccc',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    paddingBottom: 32,
-  },
-  pickCount: {
-    fontSize: 16,
-    color: '#333',
-  },
-  picItButton: {
-    backgroundColor: '#208AEF',
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  picItButtonDisabled: {
-    opacity: 0.6,
-  },
-  picItButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
   },
 });

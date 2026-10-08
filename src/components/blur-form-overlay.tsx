@@ -29,6 +29,7 @@ const BLUR_INTENSITY = 100;
 const TRANSITION_DURATION = 520;
 const OPEN_EASING = Easing.bezier(0.22, 1, 0.36, 1);
 const CLOSE_EASING = Easing.bezier(0.4, 0, 0.2, 1);
+const ANDROID_BACKDROP_COLOR = 'rgba(245, 245, 247, 0.94)';
 
 export const BLUR_FORM_CONTENT_PADDING = 20;
 
@@ -188,12 +189,26 @@ const OverlayBlurBackdrop = memo(function OverlayBlurBackdrop({
   isOpen: SharedValue<number>;
   freezeOpen: SharedValue<number>;
 }) {
+  const androidBackdropStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    backgroundColor: ANDROID_BACKDROP_COLOR,
+  }));
+
   const blurAnimatedProps = useAnimatedProps(() => {
     const intensity =
       freezeOpen.value && isOpen.value ? BLUR_INTENSITY : progress.value * BLUR_INTENSITY;
 
     return { intensity };
   });
+
+  if (Platform.OS === 'android') {
+    return (
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, androidBackdropStyle]}
+      />
+    );
+  }
 
   return (
     <AnimatedBlurView
@@ -203,7 +218,6 @@ const OverlayBlurBackdrop = memo(function OverlayBlurBackdrop({
       intensity={0}
       tint="systemThinMaterialLight"
       blurReductionFactor={1}
-      blurMethod={Platform.OS === 'android' ? 'dimezisBlurViewSdk31Plus' : undefined}
     />
   );
 });

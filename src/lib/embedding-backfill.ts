@@ -2,9 +2,63 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { embedImage } from '@/lib/embedder';
 import { getEmbedding, saveEmbedding } from '@/lib/embedding-store';
+import { isVideoUri } from '@/lib/media-uri';
 import { isOnnxRuntimeAvailable } from '@/lib/native-capabilities';
+import { resolveLocalPhotoUriForEmbedding } from '@/lib/photo-cache';
 import { logSearchError, logSearchStep } from '@/lib/search-errors';
 import { db } from '@/lib/db';
+
+type BackfillPhoto = {
+  photoId: string;
+  localUri: string | null;
+  storagePath: string | null;
+};
+
+function listPhotosForEmbedding(momentId: string): BackfillPhoto[] {
+  const byId = new Map<string, BackfillPhoto>();
+
+  const cached = db.getAllSync<{ id: string; storage_path: string }>(
+    `select id, storage_path from cached_photos where moment_id = ?`,
+    [momentId]
+  );
+  for (const row of cached) {
+    byId.set(row.id, {
+      photoId: row.id,
+      localUri: null,
+      storagePath: row.storage_path,
+    });
+  }
+
+  const files = db.getAllSync<{ photo_id: string; local_uri: string }>(
+    `select photo_id, local_uri from photo_files where moment_id = ?`,
+    [momentId]
+  );
+  for (const row of files) {
+    const existing = byId.get(row.photo_id);
+    byId.set(row.photo_id, {
+      photoId: row.photo_id,
+      localUri: row.local_uri,
+      storagePath: existing?.storagePath ?? null,
+    });
+  }
+
+  const queued = db.getAllSync<{ local_id: string; local_uri: string }>(
+    `select local_id, local_uri
+     from unsynced_photos
+     where moment_id = ? and remote_id is null`,
+    [momentId]
+  );
+  for (const row of queued) {
+    if (byId.has(row.local_id)) continue;
+    byId.set(row.local_id, {
+      photoId: row.local_id,
+      localUri: row.local_uri,
+      storagePath: null,
+    });
+  }
+
+  return [...byId.values()];
+}
 
 const EMBEDDING_INDEX_VERSION_KEY = 'photo_embeddings_index_v';
 const CURRENT_EMBEDDING_INDEX_VERSION = '2';
@@ -31,22 +85,35 @@ export async function backfillEmbeddingsForMoment(momentId: string): Promise<voi
   backfillInFlight = (async () => {
     await ensureEmbeddingIndexVersion();
 
-    const photos = db.getAllSync<{ photo_id: string; local_uri: string }>(
-      `select photo_id, local_uri from photo_files where moment_id = ?`,
-      [momentId]
-    );
+    const photos = listPhotosForEmbedding(momentId);
 
     logSearchStep('backfill:start', { momentId, photoCount: photos.length });
 
     for (const photo of photos) {
-      if (getEmbedding(photo.photo_id)) continue;
+      if (getEmbedding(photo.photoId)) continue;
+
+      const uriHint = photo.localUri ?? photo.storagePath ?? '';
+      if (uriHint && isVideoUri(uriHint)) {
+        logSearchStep('backfill:skip', { photoId: photo.photoId, reason: 'video' });
+        continue;
+      }
+
+      const localUri = await resolveLocalPhotoUriForEmbedding(photo.photoId, momentId, {
+        localUri: photo.localUri,
+        storagePath: photo.storagePath,
+      });
+
+      if (!localUri) {
+        logSearchStep('backfill:skip', { photoId: photo.photoId, reason: 'no_local_file' });
+        continue;
+      }
 
       try {
-        const vec = await embedImage(photo.local_uri);
-        saveEmbedding(photo.photo_id, vec);
-        logSearchStep('backfill:saved', { photoId: photo.photo_id });
+        const vec = await embedImage(localUri);
+        saveEmbedding(photo.photoId, vec);
+        logSearchStep('backfill:saved', { photoId: photo.photoId });
       } catch (err) {
-        logSearchError(`backfill:${photo.photo_id}`, err);
+        logSearchError(`backfill:${photo.photoId}`, err);
       }
     }
 

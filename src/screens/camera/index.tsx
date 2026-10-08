@@ -11,6 +11,7 @@ import {
   Alert,
   Button,
   LayoutChangeEvent,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -505,12 +506,18 @@ export function CameraScreen() {
   }, []);
 
   const handleCameraReady = useCallback(() => {
+    if (Platform.OS !== 'ios') {
+      lensesInitializedRef.current = true;
+      applyDisplayZoom(displayZoomRef.current);
+      return;
+    }
+
     void cameraRef.current?.getAvailableLensesAsync().then((lenses) => {
       if (lenses.length > 0) {
         setAvailableLenses(lenses);
       }
     });
-  }, []);
+  }, [applyDisplayZoom]);
 
   if (!permission) return <View style={styles.container} />;
 
@@ -546,9 +553,11 @@ export function CameraScreen() {
           mute={false}
           zoom={zoomNormalized}
           exposureCompensation={exposureBias}
-          selectedLens={selectedLens}
+          selectedLens={Platform.OS === 'ios' ? selectedLens : undefined}
           onCameraReady={handleCameraReady}
-          onAvailableLensesChanged={handleAvailableLensesChanged}
+          onAvailableLensesChanged={
+            Platform.OS === 'ios' ? handleAvailableLensesChanged : undefined
+          }
         />
 
         <GestureDetector gesture={previewGestures}>

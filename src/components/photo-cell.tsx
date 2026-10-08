@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { isVideoUri } from '@/lib/media-uri';
@@ -14,6 +14,7 @@ type Props = {
   isSelecting?: boolean;
   isSelected?: boolean;
   onPress?: () => void;
+  onLongPress?: () => void;
   onDetailPress?: () => void;
   onFailedPress?: () => void;
 };
@@ -25,12 +26,14 @@ export function PhotoCell({
   isSelecting = false,
   isSelected = false,
   onPress,
+  onLongPress,
   onDetailPress,
   onFailedPress,
 }: Props) {
   const isVideo = isVideoUri(source);
   const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
   const [durationLabel, setDurationLabel] = useState<string | null>(null);
+  const suppressNextPressRef = useRef(false);
 
   useEffect(() => {
     if (!isVideo) {
@@ -68,6 +71,11 @@ export function PhotoCell({
         : null;
 
   function handlePress() {
+    if (suppressNextPressRef.current) {
+      suppressNextPressRef.current = false;
+      return;
+    }
+
     if (syncStatus === 'failed') {
       onFailedPress?.();
       return;
@@ -79,8 +87,14 @@ export function PhotoCell({
     onDetailPress?.();
   }
 
+  function handleLongPress() {
+    if (!onLongPress) return;
+    suppressNextPressRef.current = true;
+    onLongPress();
+  }
+
   return (
-    <Pressable onPress={handlePress} style={styles.cell}>
+    <Pressable onPress={handlePress} onLongPress={handleLongPress} delayLongPress={400} style={styles.cell}>
       {displayUri ? (
         <Image source={{ uri: displayUri }} style={styles.image} />
       ) : (

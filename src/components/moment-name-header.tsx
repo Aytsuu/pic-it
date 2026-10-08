@@ -24,35 +24,49 @@ export function MomentNameHeader({ name, blurTargetRef }: Props) {
 
   return (
     <View style={[styles.wrapper, { height: backdropHeight }]} pointerEvents="box-none">
-      <MaskedView
-        style={StyleSheet.absoluteFill}
-        maskElement={
-          <LinearGradient
-            colors={['#000000', '#000000', 'rgba(0, 0, 0, 0.45)', 'transparent']}
-            locations={[0, 0.32, 0.78, 1]}
+      {Platform.OS === 'ios' ? (
+        <MaskedView
+          style={StyleSheet.absoluteFill}
+          maskElement={
+            <LinearGradient
+              colors={['#000000', '#000000', 'rgba(0, 0, 0, 0.45)', 'transparent']}
+              locations={[0, 0.32, 0.78, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+          }
+        >
+          <BlurView
+            blurTarget={blurTargetRef}
+            intensity={72}
+            tint="light"
             style={StyleSheet.absoluteFill}
           />
-        }
-      >
-        <BlurView
-          blurTarget={blurTargetRef}
-          intensity={Platform.OS === 'ios' ? 72 : 52}
-          tint="light"
+        </MaskedView>
+      ) : (
+        <LinearGradient
+          colors={[
+            'rgba(255, 255, 255, 0.96)',
+            'rgba(255, 255, 255, 0.82)',
+            'rgba(255, 255, 255, 0)',
+          ]}
+          locations={[0, 0.38, 1]}
           style={StyleSheet.absoluteFill}
-          blurMethod={Platform.OS === 'android' ? 'dimezisBlurViewSdk31Plus' : undefined}
+          pointerEvents="none"
         />
-      </MaskedView>
+      )}
 
-      <LinearGradient
-        colors={[
-          'rgba(255, 255, 255, 0.94)',
-          'rgba(255, 255, 255, 0.72)',
-          'rgba(255, 255, 255, 0)',
-        ]}
-        locations={[0, 0.38, 1]}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
+      {Platform.OS === 'ios' ? (
+        <LinearGradient
+          colors={[
+            'rgba(255, 255, 255, 0.94)',
+            'rgba(255, 255, 255, 0.72)',
+            'rgba(255, 255, 255, 0)',
+          ]}
+          locations={[0, 0.38, 1]}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      ) : null}
 
       <View style={[styles.titleRow, { paddingTop: insets.top + 4 }]}>
         <Text style={styles.title} numberOfLines={1}>

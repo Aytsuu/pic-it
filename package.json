@@ -59,6 +59,7 @@
   },
   "scripts": {
     "start": "expo start",
+    "stack": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/dev.ps1",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",

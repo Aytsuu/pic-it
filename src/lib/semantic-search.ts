@@ -25,8 +25,14 @@ const MIN_ABSOLUTE_SCORE = 0.2;
 /** Top match must beat the gallery median by at least this much (larger galleries). */
 const MIN_SPREAD_FROM_MEDIAN = 0.02;
 
-/** For ≤4 photos, 1st must beat 2nd by at least this much. */
-const MIN_PAIR_GAP = 0.012;
+/**
+ * Keep every photo within this distance of the top score. Multiple relevant shots
+ * (same subject, different angles) often cluster here instead of separating cleanly.
+ */
+const RELATIVE_BAND_FROM_TOP = 0.04;
+
+/** Below this top score, a flat gallery is treated as "no real match". */
+const WEAK_TOP_SCORE = 0.24;
 
 const SMALL_GALLERY_MAX = 4;
 
@@ -49,8 +55,8 @@ function median(values: number[]): number {
 }
 
 /**
- * Reject nonsense queries by checking whether the best match separates from the
- * rest of the gallery. A fixed high cutoff (0.27) was too strict for quantized CLIP.
+ * Return all photos in a similarity band around the best match. Reject only when the
+ * whole gallery clusters at noise level (vague query, no subject stands out).
  */
 function filterByGallerySpread(
   scored: { photoId: string; similarity: number }[],
@@ -61,15 +67,11 @@ function filterByGallerySpread(
   const sorted = [...scored].sort((a, b) => b.similarity - a.similarity);
   const scores = sorted.map((row) => row.similarity);
   const top = scores[0];
-  const second = scores[1] ?? top;
   const med = median(scores);
   const spread = top - med;
-  const pairGap = top - second;
 
   logSearchStep('filter:scores', {
     top,
-    second,
-    pairGap,
     median: med,
     spread,
     gallerySize: scores.length,
@@ -81,35 +83,30 @@ function filterByGallerySpread(
     return [];
   }
 
-  if (scores.length === 1) return sorted;
+  if (scores.length === 1) return sorted.slice(0, limit);
 
-  // Tiny galleries: median spread is unreliable — use 1st vs 2nd gap instead.
+  const galleryLooksLikeNoise =
+    spread < MIN_SPREAD_FROM_MEDIAN && top < WEAK_TOP_SCORE;
+
   if (scores.length <= SMALL_GALLERY_MAX) {
-    if (pairGap < MIN_PAIR_GAP) {
+    if (galleryLooksLikeNoise) {
       logSearchStep('filter:rejected', {
-        reason: 'low_pair_gap',
+        reason: 'small_gallery_noise',
         top,
-        second,
-        pairGap,
+        median: med,
+        spread,
       });
       return [];
     }
-
-    const cutoff = Math.max(second + 0.004, top - 0.035);
-    const kept = sorted.filter((row) => row.similarity >= cutoff).slice(0, limit);
-    logSearchStep('filter:kept', { mode: 'small_gallery', cutoff, count: kept.length });
-    return kept;
-  }
-
-  if (spread < MIN_SPREAD_FROM_MEDIAN) {
+  } else if (spread < MIN_SPREAD_FROM_MEDIAN) {
     logSearchStep('filter:rejected', { reason: 'low_spread', top, median: med, spread });
     return [];
   }
 
-  const cutoff = Math.max(top - 0.06, med + MIN_SPREAD_FROM_MEDIAN * 0.75);
+  const cutoff = Math.max(MIN_ABSOLUTE_SCORE, top - RELATIVE_BAND_FROM_TOP);
   const kept = sorted.filter((row) => row.similarity >= cutoff).slice(0, limit);
 
-  logSearchStep('filter:kept', { mode: 'spread', cutoff, count: kept.length });
+  logSearchStep('filter:kept', { mode: 'relative_band', cutoff, count: kept.length });
   return kept;
 }
 

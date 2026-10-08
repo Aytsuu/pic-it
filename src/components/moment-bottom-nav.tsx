@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -25,6 +25,9 @@ type Props = {
   onSearch: () => void;
   onInfo: () => void;
   isSelecting?: boolean;
+  selectedCount?: number;
+  onPicIt?: () => void;
+  isPicItSaving?: boolean;
 };
 
 const PULL_UP_EASING = Easing.bezier(0.22, 1.12, 0.36, 1);
@@ -36,6 +39,9 @@ export function MomentBottomNav({
   onSearch,
   onInfo,
   isSelecting = false,
+  selectedCount = 0,
+  onPicIt,
+  isPicItSaving = false,
 }: Props) {
   const insets = useSafeAreaInsets();
   const progress = useSharedValue(0);
@@ -95,6 +101,50 @@ export function MomentBottomNav({
       onPress: onInfo,
     },
   ];
+
+  if (isSelecting) {
+    const picItDisabled = selectedCount === 0 || isPicItSaving;
+
+    return (
+      <View pointerEvents="box-none" style={[styles.wrapper, { bottom: insets.bottom + 16 }]}>
+        <Animated.View style={[styles.bar, styles.selectionBar, animatedBarStyle]}>
+          <Pressable
+            onPress={onSelect}
+            style={({ pressed }) => [styles.cancelButton, pressed && styles.itemPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel selection"
+          >
+            <SymbolView
+              name={{ ios: 'xmark', android: 'close' }}
+              size={22}
+              tintColor="#fff"
+              weight="medium"
+            />
+          </Pressable>
+
+          <Text style={styles.selectionCount}>
+            {selectedCount} selected
+          </Text>
+
+          <Pressable
+            onPress={onPicIt}
+            disabled={picItDisabled}
+            style={({ pressed }) => [
+              styles.picItButton,
+              picItDisabled && styles.picItButtonDisabled,
+              pressed && !picItDisabled && styles.picItButtonPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Pic it"
+          >
+            <Text style={styles.picItButtonText}>
+              {isPicItSaving ? 'Saving…' : 'Pic it'}
+            </Text>
+          </Pressable>
+        </Animated.View>
+      </View>
+    );
+  }
 
   return (
     <View pointerEvents="box-none" style={[styles.wrapper, { bottom: insets.bottom + 16 }]}>
@@ -162,5 +212,45 @@ const styles = StyleSheet.create({
   },
   itemPressed: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  selectionBar: {
+    width: '100%',
+    maxWidth: 360,
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 12,
+  },
+  cancelButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+  },
+  selectionCount: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  picItButton: {
+    backgroundColor: '#208AEF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 9999,
+    minWidth: 92,
+    alignItems: 'center',
+  },
+  picItButtonDisabled: {
+    opacity: 0.45,
+  },
+  picItButtonPressed: {
+    backgroundColor: '#1a7ad8',
+  },
+  picItButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });
