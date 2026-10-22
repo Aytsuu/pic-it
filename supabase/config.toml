@@ -422,7 +422,7 @@ GOOGLE_CLIENT_ID = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 GOOGLE_CLIENT_SECRET = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 
 [analytics]
-enabled = true
+enabled = false
 port = 55427
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
